@@ -10,6 +10,8 @@ Browser • JavaScript console • DOM inspector • HTTP Repeater • Termux co
 
 ## Install from GitHub on your phone
 
+The easiest option is [Releases](https://github.com/khdertaysh1/BB-cyber-studio/releases): download **BB-cyber-studio.apk** from a published alpha. Releases are created from `main` only after build and emulator checks pass. If no release is available yet, use a successful Actions artifact:
+
 1. Open [Actions → Android APK](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml).
 2. Choose a **successful** run for the branch you want. Scroll to **Artifacts**.
 3. Download `BB-cyber-studio-0.1.0-alpha-debug`, extract the ZIP, and install `app-debug.apk`.
