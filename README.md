@@ -39,6 +39,8 @@ The local lab is reachable only at `127.0.0.1` using an unguessable per-launch U
 | Redirects / cookies | Redirects displayed without following; browser cookies are not automatically shared with Repeater |
 | Console | Top-level JavaScript evaluation and WebView console logs |
 | Elements | CSS selector → DOM snapshot; inline CSS editing |
+| Analyze | Live DOM map of links/scripts/forms, HTTP asset references on HTTPS, separate response-header review with cookie values omitted |
+| Browser compatibility | Upload file picker, mobile/desktop user-agent switch, zoom, reload/forward and external-browser handoff |
 | Terminal | Real Termux background commands, completed stdout/stderr/exit code; button to open interactive Termux |
 | Workspace | One explicitly saved request encrypted using Android Keystore; delete and browser-data clearing controls |
 | HTTP(S) interception | **Not implemented** — Network is metadata observation, not a MITM proxy |
@@ -48,6 +50,10 @@ The local lab is reachable only at `127.0.0.1` using an unguessable per-launch U
 | WebSocket, HAR, profiles, tabs | Planned |
 
 WebView callbacks do not see every redirect, service-worker request, cached resource or WebSocket frame. Imported request metadata may omit cookies and bodies. Review every request before sending. Native HTTP framing headers are managed by the client; raw protocol fuzzing and duplicate headers are not supported.
+
+**Website compatibility:** this is based on Android System WebView, not a Chromium fork. Some identity providers reject embedded browsers; DRM, client-certificate flows, browser extensions, pop-up-dependent login flows and cross-frame debugging are not covered. Use the external-browser button when a site rejects WebView. No claim of compatibility with every website is made.
+
+**Analyze** maps only the current top-level DOM and limits inventories to 100 entries per list. It never reads form values or cookie values. The header review makes a fresh GET without the browser session; it can therefore receive a different response from your logged-in page. It does not crawl, exploit, bypass protection or claim missing headers prove a vulnerability.
 
 ## Connect Termux
 

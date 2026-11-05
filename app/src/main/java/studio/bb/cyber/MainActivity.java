@@ -53,6 +53,8 @@ public final class MainActivity extends Activity {
     private boolean captureEnabled=true, destroyed=false;
     private LabServer lab;
     private int pendingId=100;
+    private ValueCallback<Uri[]> fileCallback;
+    private boolean desktopMode=false;
 
     private static final class Capture {
         final String url, method; final Map<String,String> headers;
@@ -112,7 +114,7 @@ public final class MainActivity extends Activity {
         LinearLayout title=column();title.addView(label("CYBER STUDIO",15,INK));title.addView(label("WORKSPACE  /  0.1 ALPHA",9,MUTED));brand.addView(title,new LinearLayout.LayoutParams(0,-2,1));
         brand.addView(button("Local lab",()->{if(lab!=null){web.loadUrl(lab.url());select("Browser");}}));root.addView(brand);
         nav=row();HorizontalScrollView navScroll=new HorizontalScrollView(this);navScroll.setHorizontalScrollBarEnabled(false);navScroll.addView(nav);
-        for(String name:new String[]{"Browser","Network","Repeater","Console","Elements","Terminal","Workspace"}) {
+        for(String name:new String[]{"Browser","Network","Repeater","Console","Elements","Analyze","Terminal","Workspace"}) {
             Button tab=button(name,()->select(name));tabs.put(name,tab);nav.addView(tab);
         }
         root.addView(navScroll);
@@ -126,6 +128,7 @@ public final class MainActivity extends Activity {
         web.getSettings().setAllowFileAccess(false);web.getSettings().setAllowContentAccess(false);
         web.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);web.getSettings().setSupportMultipleWindows(false);
         web.getSettings().setMediaPlaybackRequiresUserGesture(true);CookieManager.getInstance().setAcceptThirdPartyCookies(web,false);
+        web.getSettings().setBuiltInZoomControls(true);web.getSettings().setDisplayZoomControls(false);web.getSettings().setLoadWithOverviewMode(true);web.getSettings().setUseWideViewPort(true);
         web.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
         // No addJavascriptInterface, no SSL error bypass, no shell endpoint exposed to page content.
         web.setWebViewClient(new WebViewClient(){
@@ -151,10 +154,21 @@ public final class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient(){
             @Override public boolean onConsoleMessage(ConsoleMessage message){addLog(message.messageLevel()+"  "+message.message()+"\n"+message.sourceId()+":"+message.lineNumber());return true;}
             @Override public void onProgressChanged(WebView view,int progress){if(progress<100)status.setText("Loading "+progress+"%");}
+            @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){
+                if(fileCallback!=null)fileCallback.onReceiveValue(null);fileCallback=callback;
+                try{startActivityForResult(params.createIntent(),51);}catch(Exception e){fileCallback.onReceiveValue(null);fileCallback=null;toast("No file picker is available.");}return true;
+            }
         });
+        actions(browserBox,button("Reload",()->web.reload()),button("Forward",()->{if(web.canGoForward())web.goForward();}),button("Desktop",()->{
+            desktopMode=!desktopMode;String ua=WebSettings.getDefaultUserAgent(this);
+            if(desktopMode)ua=ua.replaceAll("Linux; Android[^)]*","X11; Linux x86_64").replace("; wv","").replaceAll(" Version/[0-9.]+","").replace(" Mobile","");
+            web.getSettings().setUserAgentString(ua);web.reload();toast(desktopMode?"Desktop user agent enabled.":"Mobile user agent enabled.");
+        }),button("Analyze page",()->select("Analyze")),button("External browser",()->{
+            String url=web.getUrl();if(url!=null&&(url.startsWith("https://")||url.startsWith("http://")))try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception e){toast("No external browser available.");}
+        }));
         browserBox.addView(web,new LinearLayout.LayoutParams(-1,0,1));content.addView(browserBox,new LinearLayout.LayoutParams(-1,0,1));
         panelHost=column();content.addView(panelHost,new LinearLayout.LayoutParams(-1,0,1));
-        buildNetwork();buildRepeater();buildConsole();buildElements();buildTerminal();buildWorkspace();
+        buildNetwork();buildRepeater();buildConsole();buildElements();buildAnalyze();buildTerminal();buildWorkspace();
         status=label("Ready · local workspace",10,MUTED);status.setMaxLines(1);root.addView(status);setContentView(root);
     }
     private void select(String name) {
@@ -268,11 +282,31 @@ public final class MainActivity extends Activity {
         actions(body,button("Run in Termux",this::runTermux),button("Open Termux",this::openTermux),button("Setup",this::termuxSetup));
         actions(body,button("Clear output",()->{TermuxResultReceiver.lastResult="";terminalOutput.setText("");}));terminalOutput=output("No command result yet.");body.addView(terminalOutput);
     }
+    private void buildAnalyze(){
+        LinearLayout body=panel("Analyze","Page intelligence","Inspect the loaded page, or review response headers with a separate request. Observations are not confirmed vulnerabilities.");
+        TextView result=output("Open a website, then choose Page map or Review headers. The local lab works here too.");
+        Button review=button("Review headers",()->{});
+        review.setOnClickListener(v->{
+            final String url=web.getUrl()==null?"":web.getUrl().split("#",2)[0];
+            try{RequestSpec.validateUrl(url);}catch(Exception e){toast(e.getMessage());return;}
+            review.setEnabled(false);result.setText("Reviewing "+url+" …");
+            http.execute(()->{String report;try{report=SiteReview.inspect(url);}catch(Exception e){report="Could not review headers: "+e.getMessage();}final String reportText=report;
+                runOnUiThread(()->{if(!destroyed){result.setText(reportText);review.setEnabled(true);}});
+            });
+        });
+        actions(body,button("Page map",()->{
+            try{ByteArrayOutputStream bytes=new ByteArrayOutputStream();try(InputStream input=getAssets().open("page-map.js")){byte[] buffer=new byte[4096];int n;while((n=input.read(buffer))!=-1)bytes.write(buffer,0,n);}
+                web.evaluateJavascript(bytes.toString("UTF-8"),r->{try{result.setText(String.valueOf(new JSONTokener(r).nextValue()));}catch(Exception e){result.setText(r);}});
+            }catch(Exception e){toast(e.getMessage());}
+        }),review,button("Copy report",()->confirm("Copy analysis?","Page URLs may contain sensitive query parameters. Review the report before sharing.",()->copy(result.getText().toString()))));
+        body.addView(result);
+    }
     private void termuxSetup(){showText("Connect Termux","1. Install Termux from its official F-Droid or GitHub source.\n\n2. In Termux, add this line to ~/.termux/termux.properties:\n\nallow-external-apps=true\n\nThen run: termux-reload-settings\n\n3. Grant BB Cyber Studio the Run commands in Termux permission when prompted. If unavailable, open Android Settings → Apps → BB Cyber Studio → Permissions → Additional permissions.\n\n4. Tap Run in Termux. Use short, non-interactive commands. Results arrive when the process exits; interactive programs belong in Open Termux for this version.\n\nCommands run with Termux's permissions and can modify its files. No command is run merely by visiting a page or importing a request.");}
     private void openTermux(){Intent launch=getPackageManager().getLaunchIntentForPackage("com.termux");if(launch==null){termuxSetup();return;}startActivity(launch);}
     private void runTermux(){
         if(checkSelfPermission(TERMUX_PERMISSION)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{TERMUX_PERMISSION},40);toast("Grant permission, then tap Run again.");return;}
         String command=commandInput.getText().toString();if(command.trim().isEmpty())return;
+        if(command.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>64000){toast("Command exceeds 64 KB. Save large payloads to a file in Termux instead.");return;}
         confirm("Run this command?",command,()->{
             try{
                 Intent callback=new Intent(this,TermuxResultReceiver.class);callback.setAction(getPackageName()+".TERMUX_RESULT."+(++pendingId));
@@ -312,5 +346,12 @@ public final class MainActivity extends Activity {
     private void confirm(String title,String message,Runnable accepted){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setNegativeButton("Cancel",null).setPositiveButton("Continue",(d,w)->accepted.run()).show();}
     private void showText(String title,String value){ScrollView scroll=new ScrollView(this);scroll.addView(output(value));new AlertDialog.Builder(this).setTitle(title).setView(scroll).setPositiveButton("Close",null).show();}
     @Override public void onBackPressed(){if(!selected.equals("Browser")){select("Browser");return;}if(web.canGoBack())web.goBack();else super.onBackPressed();}
-    @Override protected void onDestroy(){destroyed=true;TermuxResultReceiver.listener=null;http.shutdownNow();if(lab!=null)try{lab.close();}catch(Exception ignored){}web.stopLoading();web.destroy();super.onDestroy();}
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==51&&fileCallback!=null){Uri[] uris=WebChromeClient.FileChooserParams.parseResult(resultCode,data);
+            if(uris!=null)for(Uri uri:uris)if(!"content".equals(uri.getScheme())){uris=null;break;}
+            fileCallback.onReceiveValue(uris);fileCallback=null;
+        }
+    }
+    @Override protected void onDestroy(){destroyed=true;TermuxResultReceiver.listener=null;if(fileCallback!=null){fileCallback.onReceiveValue(null);fileCallback=null;}http.shutdownNow();if(lab!=null)try{lab.close();}catch(Exception ignored){}web.stopLoading();web.destroy();super.onDestroy();}
 }

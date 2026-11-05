@@ -5,6 +5,7 @@
 - [x] Native mobile navigation, browser and local echo lab
 - [x] Request metadata and native HTTP Repeater
 - [x] JavaScript console and DOM/style inspection
+- [x] Page resource/form map and contextual response-header review
 - [x] Termux command handoff and completion results
 - [x] Encrypted saved request and clear-data controls
 - [x] Build workflow and core HTTP/security regression tests

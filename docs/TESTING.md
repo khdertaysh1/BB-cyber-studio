@@ -6,6 +6,8 @@
 
 JVM tests cover request scheme/credential validation, header injection and ambiguity, shell quoting, request size limits, real loopback GET/POST, unavailable lab paths, redirect non-following, response caps and binary handling. Android lint and Java compilation are required before the APK artifact is uploaded.
 
+Additional tests cover cookie-value omission and report-only CSP handling. The `device-smoke` job runs Android 15 emulator tests for launch, local browser/console, Repeater, DOM inspection, page analysis and Android Keystore saving. It uploads screenshots and test reports. The separate Termux application is not installed by these tests; its real-device integration still needs verification.
+
 ## Device acceptance (not implied by a green JVM build)
 
 Test on Android 8+ and Android 15 with a recent WebView:

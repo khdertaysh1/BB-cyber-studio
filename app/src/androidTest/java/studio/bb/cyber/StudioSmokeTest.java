@@ -45,6 +45,8 @@ public class StudioSmokeTest {
             tap(scenario,"Repeater");tap(scenario,"Send request");waitFor(scenario,"HTTP 200");screenshot("03-repeater");
             tap(scenario,"Network");screenshot("04-network");
             tap(scenario,"Elements");tap(scenario,"Inspect");waitFor(scenario,"<h1>");
+            tap(scenario,"Analyze");tap(scenario,"Page map");waitFor(scenario,"secureContext");screenshot("05-analysis");
+            tap(scenario,"Review headers");waitFor(scenario,"HEADER REVIEW");
             tap(scenario,"Terminal");waitFor(scenario,"Termux commands");screenshot("05-terminal");
             tap(scenario,"Workspace");tap(scenario,"Save request");tap(scenario,"Load request");waitFor(scenario,"Request workbench");
         }
