@@ -1,0 +1,24 @@
+# Verification
+
+## Automated
+
+`gradle testDebugUnitTest lintDebug assembleDebug`
+
+JVM tests cover request scheme/credential validation, header injection and ambiguity, shell quoting, request size limits, real loopback GET/POST, unavailable lab paths, redirect non-following, response caps and binary handling. Android lint and Java compilation are required before the APK artifact is uploaded.
+
+## Device acceptance (not implied by a green JVM build)
+
+Test on Android 8+ and Android 15 with a recent WebView:
+
+- Launch; Local lab loads without network access. GET and POST buttons show actual JSON.
+- Network shows requests; pause stops recording; URL/method filter works; clear empties it.
+- Transfer GET to Repeater; verify JSON, modify query, compare two responses.
+- Transfer POST; verify the missing-body notice; manually enter JSON and Content-Type before sending.
+- Console evaluates expressions and catches errors. Lab logs appear. Elements edits the selected DOM node.
+- Invalid TLS fails; no bypass prompt. Unsupported navigation schemes do not open external apps.
+- Save and load a request; restart; verify encrypted load. Delete saved request. Clear browser cookies/storage.
+- Termux: missing installation, denied permission, setup disabled, stdout, stderr, nonzero shell exit, successful internal `err=-1`, lifecycle return, very large output.
+- Rotate during a request; ensure no callback crashes. This alpha recreates in-memory browser/panel state on rotation; saved workspace is retained.
+- Small screen, large font, keyboard open and landscape: controls remain reachable using scrolling.
+
+The current terminal runner is completion-based and has no streaming/cancel/interactive input. Device-specific execution and the UI need real-device testing in addition to CI.
