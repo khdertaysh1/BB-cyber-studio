@@ -2,6 +2,7 @@
 set -euo pipefail
 # Pin the emulator instead of relying on a preinstalled binary or the latest SDK archive.
 SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$PATH"
 curl --fail --location --retry 3 --output /tmp/bb-emulator.zip https://dl.google.com/android/repository/emulator-linux_x64-12836668.zip
 echo '160fec5c31b4e3b81c47c18dcb0d103fc4dfb13396dd75463d02a945e8f60d5c  /tmp/bb-emulator.zip' | sha256sum --check
 unzip -q -o /tmp/bb-emulator.zip -d "$SDK_ROOT"
