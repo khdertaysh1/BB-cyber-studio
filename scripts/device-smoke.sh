@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Use the runner's installed emulator instead of upgrading to an unpinned latest archive.
+# Pin the emulator instead of relying on a preinstalled binary or the latest SDK archive.
 SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+curl --fail --location --retry 3 --output /tmp/bb-emulator.zip https://dl.google.com/android/repository/emulator-linux_x64-12836668.zip
+echo '160fec5c31b4e3b81c47c18dcb0d103fc4dfb13396dd75463d02a945e8f60d5c  /tmp/bb-emulator.zip' | sha256sum --check
+unzip -q -o /tmp/bb-emulator.zip -d "$SDK_ROOT"
 "$SDK_ROOT/emulator/emulator" -version
+(set +o pipefail; yes | sdkmanager --licenses > /dev/null)
 sdkmanager 'system-images;android-35;google_apis;x86_64'
 printf 'no\n' | avdmanager create avd --force --name bb-smoke --package 'system-images;android-35;google_apis;x86_64' --device pixel_2
 "$SDK_ROOT/emulator/emulator" -avd bb-smoke -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -memory 2048 > emulator.log 2>&1 &

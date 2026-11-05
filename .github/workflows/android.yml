@@ -68,3 +68,5 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
             device-screenshots/
+            emulator.log
+            device-logcat.txt

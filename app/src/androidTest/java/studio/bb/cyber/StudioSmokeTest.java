@@ -42,6 +42,11 @@ public class StudioSmokeTest {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitFor(scenario,"observed requests");screenshot("01-browser");
             tap(scenario,"Console");tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");screenshot("02-console");
+            scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");screenshot("02-console-landscape");
+            scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT));
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
             tap(scenario,"Repeater");tap(scenario,"Send request");waitFor(scenario,"HTTP 200");screenshot("03-repeater");
             tap(scenario,"Network");screenshot("04-network");
             tap(scenario,"Elements");tap(scenario,"Inspect");waitFor(scenario,"<h1>");

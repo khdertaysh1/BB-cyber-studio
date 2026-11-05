@@ -39,6 +39,7 @@ public final class MainActivity extends Activity {
     private static final int BG=0xff0b1220, CARD=0xff142137, INK=0xffe5edf8, MUTED=0xff9eafc4, ACCENT=0xff52e0c4;
     private static final String TERMUX_PERMISSION="com.termux.permission.RUN_COMMAND";
     private LinearLayout root, content, browserBox, panelHost, networkRows, nav;
+    private HorizontalScrollView navigationScroll;
     private WebView web;
     private TextView status, consoleOutput, responseOutput, terminalOutput, elementsOutput;
     private EditText address, jsInput, requestUrl, requestHeaders, requestBody, commandInput, projectName, networkFilter;
@@ -65,13 +66,13 @@ public final class MainActivity extends Activity {
         buildUi();
         TermuxResultReceiver.listener=result->runOnUiThread(()->{if(!destroyed)terminalOutput.setText(result);});
         terminalOutput.setText(TermuxResultReceiver.lastResult);
-        try {
+        http.execute(()->{try {
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();
             try(InputStream input=getAssets().open("lab.html")) { byte[] buffer=new byte[4096]; int n; while((n=input.read(buffer))!=-1)bytes.write(buffer,0,n); }
-            lab=new LabServer(bytes.toByteArray());
-            web.loadUrl(lab.url()); address.setText(lab.url());
-            requestUrl.setText(lab.url()+"echo?from=repeater");
-        } catch(Exception e) { toast("Local lab: "+e.getMessage()); }
+            LabServer created=new LabServer(bytes.toByteArray());
+            runOnUiThread(()->{if(destroyed){try{created.close();}catch(Exception ignored){}return;}lab=created;
+                web.loadUrl(lab.url());address.setText(lab.url());requestUrl.setText(lab.url()+"echo?from=repeater");});
+        } catch(Exception e) { runOnUiThread(()->{if(!destroyed)toast("Local lab: "+e.getMessage());}); }});
         select("Browser");
     }
     private int dp(int value) { return Math.round(value*getResources().getDisplayMetrics().density); }
@@ -105,7 +106,7 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(body);panels.put(name,scroll);return body;
     }
     @SuppressLint("SetJavaScriptEnabled") private void buildUi() {
-        root=column();root.setBackgroundColor(BG);
+        root=column();root.setBackgroundColor(BG);root.setFocusableInTouchMode(true);
         root.setOnApplyWindowInsetsListener((v,insets)->{
             v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets;
         });
@@ -113,11 +114,11 @@ public final class MainActivity extends Activity {
         TextView logo=label("BB",24,ACCENT);logo.setTypeface(null,Typeface.BOLD);brand.addView(logo);
         LinearLayout title=column();title.addView(label("CYBER STUDIO",15,INK));title.addView(label("WORKSPACE  /  0.1 ALPHA",9,MUTED));brand.addView(title,new LinearLayout.LayoutParams(0,-2,1));
         brand.addView(button("Local lab",()->{if(lab!=null){web.loadUrl(lab.url());select("Browser");}}));root.addView(brand);
-        nav=row();HorizontalScrollView navScroll=new HorizontalScrollView(this);navScroll.setHorizontalScrollBarEnabled(false);navScroll.addView(nav);
+        nav=row();navigationScroll=new HorizontalScrollView(this);navigationScroll.setHorizontalScrollBarEnabled(false);navigationScroll.addView(nav);
         for(String name:new String[]{"Browser","Network","Repeater","Console","Elements","Analyze","Terminal","Workspace"}) {
             Button tab=button(name,()->select(name));tabs.put(name,tab);nav.addView(tab);
         }
-        root.addView(navScroll);
+        root.addView(navigationScroll);
         content=column();root.addView(content,new LinearLayout.LayoutParams(-1,0,1));
         browserBox=column();LinearLayout urlBar=row();urlBar.setPadding(dp(8),dp(4),dp(8),dp(4));
         urlBar.addView(button("‹",()->{if(web.canGoBack())web.goBack();}));
@@ -169,15 +170,18 @@ public final class MainActivity extends Activity {
         browserBox.addView(web,new LinearLayout.LayoutParams(-1,0,1));content.addView(browserBox,new LinearLayout.LayoutParams(-1,0,1));
         panelHost=column();content.addView(panelHost,new LinearLayout.LayoutParams(-1,0,1));
         buildNetwork();buildRepeater();buildConsole();buildElements();buildAnalyze();buildTerminal();buildWorkspace();
-        status=label("Ready · local workspace",10,MUTED);status.setMaxLines(1);root.addView(status);setContentView(root);
+        status=label("Ready · local workspace",10,MUTED);status.setMaxLines(1);root.addView(status);setContentView(root);root.requestFocus();
     }
     private void select(String name) {
         selected=name;boolean browser=name.equals("Browser"),split=name.equals("Console")||name.equals("Elements");
         browserBox.setVisibility(browser||split?View.VISIBLE:View.GONE);panelHost.setVisibility(browser?View.GONE:View.VISIBLE);
-        browserBox.setLayoutParams(new LinearLayout.LayoutParams(-1,0,browser?1:0.42f));
-        panelHost.setLayoutParams(new LinearLayout.LayoutParams(-1,0,0.58f));
+        boolean landscape=getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        content.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
+        browserBox.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,browser?1:0.42f));
+        panelHost.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,0.58f));
         panelHost.removeAllViews();View panel=panels.get(name);if(panel!=null)panelHost.addView(panel,new LinearLayout.LayoutParams(-1,-1));
         for(Map.Entry<String,Button> entry:tabs.entrySet()){boolean active=entry.getKey().equals(name);entry.getValue().setTextColor(active?BG:MUTED);entry.getValue().setBackground(box(active?ACCENT:CARD));}
+        navigationScroll.post(()->{Button active=tabs.get(selected);if(active!=null)navigationScroll.smoothScrollTo(Math.max(0,active.getLeft()-dp(80)),0);});
         if(name.equals("Network"))renderNetwork();
         if(status!=null)status.setText(name+" · BB Cyber Studio");
     }
@@ -346,6 +350,7 @@ public final class MainActivity extends Activity {
     private void confirm(String title,String message,Runnable accepted){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setNegativeButton("Cancel",null).setPositiveButton("Continue",(d,w)->accepted.run()).show();}
     private void showText(String title,String value){ScrollView scroll=new ScrollView(this);scroll.addView(output(value));new AlertDialog.Builder(this).setTitle(title).setView(scroll).setPositiveButton("Close",null).show();}
     @Override public void onBackPressed(){if(!selected.equals("Browser")){select("Browser");return;}if(web.canGoBack())web.goBack();else super.onBackPressed();}
+    @Override public void onConfigurationChanged(android.content.res.Configuration configuration){super.onConfigurationChanged(configuration);select(selected);}
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
         if(requestCode==51&&fileCallback!=null){Uri[] uris=WebChromeClient.FileChooserParams.parseResult(resultCode,data);

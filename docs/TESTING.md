@@ -20,7 +20,7 @@ Test on Android 8+ and Android 15 with a recent WebView:
 - Invalid TLS fails; no bypass prompt. Unsupported navigation schemes do not open external apps.
 - Save and load a request; restart; verify encrypted load. Delete saved request. Clear browser cookies/storage.
 - Termux: missing installation, denied permission, setup disabled, stdout, stderr, nonzero shell exit, successful internal `err=-1`, lifecycle return, very large output.
-- Rotate during a request; ensure no callback crashes. This alpha recreates in-memory browser/panel state on rotation; saved workspace is retained.
+- Rotate during a request; ensure no callback crashes. Rotation keeps the active workspace and switches the console/DOM layout to side-by-side panels in landscape. Process death still loses unsaved in-memory state.
 - Small screen, large font, keyboard open and landscape: controls remain reachable using scrolling.
 
 The current terminal runner is completion-based and has no streaming/cancel/interactive input. Device-specific execution and the UI need real-device testing in addition to CI.
