@@ -39,10 +39,11 @@ public class StudioSmokeTest {
         fail("Timed out waiting for "+text);
     }
     private void screenshot(String name) throws Exception {
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();Thread.sleep(150);
         Bitmap bitmap=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
         if(bitmap!=null){File dir=InstrumentationRegistry.getInstrumentation().getTargetContext().getFilesDir();try(FileOutputStream output=new FileOutputStream(new File(dir,name+".png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,output);}bitmap.recycle();
             android.os.ParcelFileDescriptor pipe=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("mkdir -p /data/local/tmp/bb-shots; run-as studio.bb.cyber cat files/"+name+".png > /data/local/tmp/bb-shots/"+name+".png");
-            try(java.io.FileInputStream in=new java.io.FileInputStream(pipe.getFileDescriptor())){byte[] data=new byte[256];while(in.read(data)!=-1){}}finally{pipe.close();}
+            try(java.io.FileInputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(pipe)){byte[] data=new byte[256];while(in.read(data)!=-1){}}
         }
     }
     @Test public void browserConsoleRepeaterAndPanelsWork() throws Exception {
