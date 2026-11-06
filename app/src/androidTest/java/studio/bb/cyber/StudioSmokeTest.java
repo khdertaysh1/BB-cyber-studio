@@ -23,12 +23,16 @@ public class StudioSmokeTest {
         if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++){View found=find(((ViewGroup)view).getChildAt(i),text,button);if(found!=null)return found;}
         return null;
     }
+    private View findDescription(View view,String text){
+        if(text.contentEquals(view.getContentDescription()==null?"":view.getContentDescription()))return view;
+        if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++){View found=findDescription(((ViewGroup)view).getChildAt(i),text);if(found!=null)return found;}return null;
+    }
     private boolean contains(View view,String text) {
         if(view instanceof TextView && ((TextView)view).getText().toString().contains(text))return true;
         if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++)if(contains(((ViewGroup)view).getChildAt(i),text))return true;
         return false;
     }
-    private void tap(ActivityScenario<MainActivity> scenario,String text){scenario.onActivity(a->{View b=find(a.getWindow().getDecorView(),text,true);assertNotNull(text,b);b.performClick();});}
+    private void tap(ActivityScenario<MainActivity> scenario,String text){scenario.onActivity(a->{if(java.util.Arrays.asList("Console","Network","Elements","Repeater","Analyze").contains(text)){View tools=find(a.getWindow().getDecorView(),"Tools",true);if(tools!=null)tools.performClick();}View b=find(a.getWindow().getDecorView(),text,true);assertNotNull(text,b);b.performClick();});}
     private void waitFor(ActivityScenario<MainActivity> scenario,String text) throws Exception {
         long deadline=System.currentTimeMillis()+10000;boolean[] found={false};
         while(System.currentTimeMillis()<deadline){scenario.onActivity(a->found[0]=contains(a.getWindow().getDecorView(),text));if(found[0])return;Thread.sleep(100);}
@@ -40,7 +44,8 @@ public class StudioSmokeTest {
     }
     @Test public void browserConsoleRepeaterAndPanelsWork() throws Exception {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
-            waitFor(scenario,"observed requests");screenshot("01-browser");
+            waitFor(scenario,"observed requests");screenshot("00-start");
+            scenario.onActivity(a->a.openLab());Thread.sleep(700);waitFor(scenario,"observed requests");screenshot("01-browser");
             tap(scenario,"Console");tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");screenshot("02-console");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
             InstrumentationRegistry.getInstrumentation().waitForIdleSync();
@@ -52,7 +57,18 @@ public class StudioSmokeTest {
             tap(scenario,"Elements");tap(scenario,"Inspect");waitFor(scenario,"<h1>");
             tap(scenario,"Analyze");tap(scenario,"Page map");waitFor(scenario,"secureContext");screenshot("05-analysis");
             tap(scenario,"Review headers");waitFor(scenario,"HEADER REVIEW");
-            tap(scenario,"Terminal");waitFor(scenario,"Termux commands");screenshot("05-terminal");
+            tap(scenario,"Terminal");waitFor(scenario,"LOCAL SHELL");
+            scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("printf 'BB_%s_OK\\n' SHELL");});
+            tap(scenario,"Run");waitFor(scenario,"BB_SHELL_OK");screenshot("06-terminal");
+            scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("cd /; pwd");});
+            tap(scenario,"Run");Thread.sleep(300);
+            scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("printf 'CWD=%s\\n' \"$PWD\"");});
+            tap(scenario,"Run");waitFor(scenario,"CWD=/");
+            tap(scenario,"Browser");
+            scenario.onActivity(a->{View plus=findDescription(a.getWindow().getDecorView(),"New tab");assertNotNull(plus);plus.performClick();});
+            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Evaluate");waitFor(scenario,"New tab");screenshot("07-tabs");
+            scenario.onActivity(a->{View old=findDescription(a.getWindow().getDecorView(),"Switch tab BB · Local lab");assertNotNull(old);old.performClick();});
+            tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");
             tap(scenario,"Workspace");tap(scenario,"Save request");tap(scenario,"Load request");waitFor(scenario,"Request workbench");
         }
     }

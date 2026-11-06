@@ -38,7 +38,17 @@ import java.util.concurrent.Executors;
 public final class MainActivity extends Activity {
     private static final int BG=0xff0b1220, CARD=0xff142137, INK=0xffe5edf8, MUTED=0xff9eafc4, ACCENT=0xff52e0c4;
     private static final String TERMUX_PERMISSION="com.termux.permission.RUN_COMMAND";
-    private LinearLayout root, content, browserBox, panelHost, networkRows, nav;
+    private LinearLayout root, content, browserBox, panelHost, networkRows, nav, siteTabs, bottomNav, toolHeader;
+    private FrameLayout webHost;
+    private ProgressBar loading;
+    private final ArrayList<BrowserTab> browserTabs=new ArrayList<>();
+    private BrowserTab activeTab;
+    private String lastTool="Network";
+    private boolean splitTools=false;
+    private ScrollView terminalScroll;
+    private LocalShell localShell;
+    private final ArrayList<String> commandHistory=new ArrayList<>();
+    private int historyIndex=0;
     private HorizontalScrollView navigationScroll;
     private WebView web;
     private TextView status, consoleOutput, responseOutput, terminalOutput, elementsOutput;
@@ -47,8 +57,8 @@ public final class MainActivity extends Activity {
     private Button sendButton;
     private final Map<String,View> panels=new LinkedHashMap<>();
     private final Map<String,Button> tabs=new LinkedHashMap<>();
-    private final ArrayList<Capture> captures=new ArrayList<>();
-    private final ArrayList<String> logs=new ArrayList<>();
+    private ArrayList<Capture> captures=new ArrayList<>();
+    private ArrayList<String> logs=new ArrayList<>();
     private final ExecutorService http=Executors.newSingleThreadExecutor();
     private String selected="Browser", latestResponse="", previousResponse="";
     private boolean captureEnabled=true, destroyed=false;
@@ -57,6 +67,11 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private boolean desktopMode=false;
 
+    private static final class BrowserTab {
+        WebView view; String title="New tab"; boolean desktop;
+        final ArrayList<Capture> captures=new ArrayList<>();
+        final ArrayList<String> logs=new ArrayList<>();
+    }
     private static final class Capture {
         final String url, method; final Map<String,String> headers;
         Capture(WebResourceRequest r) { url=r.getUrl().toString(); method=r.getMethod(); headers=new LinkedHashMap<>(r.getRequestHeaders()); }
@@ -65,13 +80,13 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         buildUi();
         TermuxResultReceiver.listener=result->runOnUiThread(()->{if(!destroyed)terminalOutput.setText(result);});
-        terminalOutput.setText(TermuxResultReceiver.lastResult);
+        if(!TermuxResultReceiver.lastResult.isEmpty())appendTerminal(TermuxResultReceiver.lastResult);
         http.execute(()->{try {
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();
             try(InputStream input=getAssets().open("lab.html")) { byte[] buffer=new byte[4096]; int n; while((n=input.read(buffer))!=-1)bytes.write(buffer,0,n); }
             LabServer created=new LabServer(bytes.toByteArray());
             runOnUiThread(()->{if(destroyed){try{created.close();}catch(Exception ignored){}return;}lab=created;
-                web.loadUrl(lab.url());address.setText(lab.url());requestUrl.setText(lab.url()+"echo?from=repeater");});
+                requestUrl.setText(lab.url()+"echo?from=repeater");});
         } catch(Exception e) { runOnUiThread(()->{if(!destroyed)toast("Local lab: "+e.getMessage());}); }});
         select("Browser");
     }
@@ -84,7 +99,7 @@ public final class MainActivity extends Activity {
     }
     private TextView output(String initial) { TextView v=label(initial,12,INK);v.setTypeface(Typeface.MONOSPACE);v.setTextIsSelectable(true);v.setPadding(dp(12),dp(12),dp(12),dp(12));v.setBackground(box(BG));return v; }
     private EditText edit(String hint,int lines) {
-        EditText v=new EditText(this);v.setTextColor(INK);v.setHintTextColor(MUTED);v.setTextSize(13);v.setHint(hint);v.setContentDescription(hint);
+        EditText v=new EditText(this);v.setTextColor(INK);v.setHintTextColor(MUTED);v.setTextSize(13);v.setTextDirection(View.TEXT_DIRECTION_LTR);v.setHint(hint);v.setContentDescription(hint);
         v.setPadding(dp(12),dp(10),dp(12),dp(10));v.setBackground(box(BG));v.setMinLines(lines);v.setGravity(Gravity.TOP);
         v.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS|(lines>1?InputType.TYPE_TEXT_FLAG_MULTI_LINE:0));
         if(lines==1)v.setSingleLine(true);
@@ -92,7 +107,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(5),0,dp(5));v.setLayoutParams(lp);return v;
     }
     private Button button(String title,Runnable action) {
-        Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextColor(ACCENT);b.setTextSize(12);b.setMinHeight(dp(48));b.setMinimumWidth(0);
+        Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextColor(ACCENT);b.setTextSize(12);b.setMinHeight(dp(48));b.setMinimumWidth(0);b.setMinWidth(0);b.setPadding(dp(12),0,dp(12),0);b.setStateListAnimator(null);
         b.setBackground(box(CARD)); b.setOnClickListener(v->action.run());
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(48));lp.setMargins(dp(2),dp(3),dp(2),dp(3));b.setLayoutParams(lp);return b;
     }
@@ -102,7 +117,7 @@ public final class MainActivity extends Activity {
     }
     private LinearLayout panel(String name,String title,String caption) {
         LinearLayout body=column();body.setPadding(dp(12),dp(8),dp(12),dp(18));
-        TextView heading=label(title,22,INK);heading.setTypeface(null,Typeface.BOLD);body.addView(heading);body.addView(label(caption,12,MUTED));
+        TextView heading=label(title,18,INK);heading.setTypeface(null,Typeface.BOLD);body.addView(heading);body.addView(label(caption,12,MUTED));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(body);panels.put(name,scroll);return body;
     }
     @SuppressLint("SetJavaScriptEnabled") private void buildUi() {
@@ -110,21 +125,36 @@ public final class MainActivity extends Activity {
         root.setOnApplyWindowInsetsListener((v,insets)->{
             v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets;
         });
-        LinearLayout brand=row();brand.setPadding(dp(12),dp(4),dp(8),dp(2));
-        TextView logo=label("BB",24,ACCENT);logo.setTypeface(null,Typeface.BOLD);brand.addView(logo);
-        LinearLayout title=column();title.addView(label("CYBER STUDIO",15,INK));title.addView(label("WORKSPACE  /  0.1 ALPHA",9,MUTED));brand.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        brand.addView(button("Local lab",()->{if(lab!=null){web.loadUrl(lab.url());select("Browser");}}));root.addView(brand);
-        nav=row();navigationScroll=new HorizontalScrollView(this);navigationScroll.setHorizontalScrollBarEnabled(false);navigationScroll.addView(nav);
-        for(String name:new String[]{"Browser","Network","Repeater","Console","Elements","Analyze","Terminal","Workspace"}) {
-            Button tab=button(name,()->select(name));tabs.put(name,tab);nav.addView(tab);
-        }
-        root.addView(navigationScroll);
-        content=column();root.addView(content,new LinearLayout.LayoutParams(-1,0,1));
-        browserBox=column();LinearLayout urlBar=row();urlBar.setPadding(dp(8),dp(4),dp(8),dp(4));
-        urlBar.addView(button("‹",()->{if(web.canGoBack())web.goBack();}));
-        address=edit("https://example.com",1);address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);address.setImeOptions(EditorInfo.IME_ACTION_GO);
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        status=label("Ready",10,MUTED);
+        LinearLayout tabLine=row();tabLine.setBackgroundColor(0xff0f1725);
+        HorizontalScrollView siteScroll=new HorizontalScrollView(this);siteScroll.setHorizontalScrollBarEnabled(false);
+        siteTabs=row();siteScroll.addView(siteTabs);tabLine.addView(siteScroll,new LinearLayout.LayoutParams(0,dp(44),1));
+        tabLine.addView(icon("+","New tab",()->newTab(null)));root.addView(tabLine);
+        LinearLayout urlBar=row();urlBar.setPadding(dp(4),0,dp(4),0);
+        urlBar.addView(icon("‹","Back",()->{if(web.canGoBack())web.goBack();}));
+        address=edit("Search or enter address",1);address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);address.setImeOptions(EditorInfo.IME_ACTION_GO);address.setSelectAllOnFocus(true);
         address.setOnEditorActionListener((v,action,event)->{if(action==EditorInfo.IME_ACTION_GO){navigate();return true;}return false;});
-        urlBar.addView(address,new LinearLayout.LayoutParams(0,-2,1));urlBar.addView(button("Go",this::navigate));browserBox.addView(urlBar);
+        urlBar.addView(address,new LinearLayout.LayoutParams(0,dp(44),1));
+        urlBar.addView(icon("↻","Reload",()->web.reload()));urlBar.addView(icon("⋮","Browser menu",this::browserMenu));root.addView(urlBar);
+        loading=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);loading.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));root.addView(loading,new LinearLayout.LayoutParams(-1,dp(2)));
+        nav=row();navigationScroll=new HorizontalScrollView(this);navigationScroll.setHorizontalScrollBarEnabled(false);navigationScroll.addView(nav);
+        for(String name:new String[]{"Network","Console","Elements","Repeater","Analyze"}){Button tab=button(name,()->select(name));tabs.put(name,tab);nav.addView(tab);}
+        root.addView(navigationScroll);
+        toolHeader=row();TextView scope=label("TOOLS · ACTIVE TAB",10,MUTED);toolHeader.addView(scope,new LinearLayout.LayoutParams(0,-2,1));
+        toolHeader.addView(button("Split",()->{splitTools=!splitTools;select(selected);}));toolHeader.addView(icon("×","Close tools",()->select("Browser")));root.addView(toolHeader);
+        content=column();root.addView(content,new LinearLayout.LayoutParams(-1,0,1));
+        browserBox=column();webHost=new FrameLayout(this);browserBox.addView(webHost,new LinearLayout.LayoutParams(-1,-1));content.addView(browserBox,new LinearLayout.LayoutParams(-1,0,1));
+        panelHost=column();content.addView(panelHost,new LinearLayout.LayoutParams(-1,0,1));
+        buildNetwork();buildRepeater();buildConsole();buildElements();buildAnalyze();buildTerminal();buildWorkspace();
+        bottomNav=row();bottomNav.setBackgroundColor(0xff101a2a);
+        for(String name:new String[]{"Browser","Tools","Terminal","Workspace"}){Button b=button(name,()->select(name.equals("Tools")?lastTool:name));tabs.put(name,b);bottomNav.addView(b,new LinearLayout.LayoutParams(0,dp(52),1));}
+        root.addView(bottomNav);status.setPadding(dp(12),0,dp(8),0);root.addView(status,new LinearLayout.LayoutParams(-1,dp(18)));
+        setContentView(root);newTab(null);root.requestFocus();
+    }
+    private Button icon(String glyph,String description,Runnable action){Button b=button(glyph,action);b.setTextSize(22);b.setContentDescription(description);b.setBackgroundColor(Color.TRANSPARENT);b.setPadding(0,0,0,0);b.setLayoutParams(new LinearLayout.LayoutParams(dp(44),dp(48)));return b;}
+    @SuppressLint("SetJavaScriptEnabled") private WebView createWeb(BrowserTab tab){
+        WebView web;
         web=new WebView(this);web.setBackgroundColor(BG);web.getSettings().setJavaScriptEnabled(true);web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);web.getSettings().setAllowContentAccess(false);
         web.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);web.getSettings().setSupportMultipleWindows(false);
@@ -135,58 +165,85 @@ public final class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient(){
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 String scheme=request.getUrl().getScheme();
+                if("https://bb.invalid/local-lab".equals(request.getUrl().toString())){openLab();return true;}
                 if(!"http".equalsIgnoreCase(scheme)&&!"https".equalsIgnoreCase(scheme)){toast("Blocked navigation scheme: "+scheme);return true;}return false;
             }
-            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){address.setText(url);status.setText("Loading · "+url);}
-            @Override public void onPageFinished(WebView view,String url){status.setText("Browser · "+captures.size()+" observed requests");}
+            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){if(tab==activeTab){address.setText(url.startsWith("https://bb.invalid/")?"":url);status.setText("Loading · "+url);}}
+            @Override public void onPageFinished(WebView view,String url){if(tab==activeTab)status.setText("Browser · "+tab.captures.size()+" observed requests");}
             @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest request){
+                if("https://bb.invalid/start".equals(request.getUrl().toString()))try{return new WebResourceResponse("text/html","UTF-8",getAssets().open("start.html"));}catch(Exception ignored){}
                 String scheme=request.getUrl().getScheme();
                 if("http".equalsIgnoreCase(scheme)||"https".equalsIgnoreCase(scheme)) {
                     Capture capture=new Capture(request);
-                    runOnUiThread(()->{if(destroyed||!captureEnabled)return;if(captures.size()>=200)captures.remove(0);captures.add(capture);if(selected.equals("Network"))renderNetwork();});
+                    runOnUiThread(()->{if(destroyed||!captureEnabled)return;if(!browserTabs.contains(tab))return;if(tab.captures.size()>=200)tab.captures.remove(0);tab.captures.add(capture);if(tab==activeTab&&selected.equals("Network"))renderNetwork();});
                 }
                 return null;
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
-                if(request.isForMainFrame())status.setText("Navigation error · "+error.getDescription());
+                if(tab==activeTab&&request.isForMainFrame())status.setText("Navigation error · "+error.getDescription());
             }
-            @Override public void onReceivedSslError(WebView view,android.webkit.SslErrorHandler handler,android.net.http.SslError error){handler.cancel();status.setText("TLS validation failed. Connection blocked.");}
+            @Override public void onReceivedSslError(WebView view,android.webkit.SslErrorHandler handler,android.net.http.SslError error){handler.cancel();if(tab==activeTab)status.setText("TLS validation failed. Connection blocked.");}
         });
         web.setWebChromeClient(new WebChromeClient(){
-            @Override public boolean onConsoleMessage(ConsoleMessage message){addLog(message.messageLevel()+"  "+message.message()+"\n"+message.sourceId()+":"+message.lineNumber());return true;}
-            @Override public void onProgressChanged(WebView view,int progress){if(progress<100)status.setText("Loading "+progress+"%");}
+            @Override public boolean onConsoleMessage(ConsoleMessage message){addTabLog(tab,message.messageLevel()+"  "+message.message()+"\n"+message.sourceId()+":"+message.lineNumber());return true;}
+            @Override public void onProgressChanged(WebView view,int progress){if(tab==activeTab){loading.setProgress(progress);loading.setVisibility(progress==100?View.INVISIBLE:View.VISIBLE);}}
+            @Override public void onReceivedTitle(WebView view,String title){tab.title=title==null?"New tab":title;renderTabs();}
             @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){
                 if(fileCallback!=null)fileCallback.onReceiveValue(null);fileCallback=callback;
                 try{startActivityForResult(params.createIntent(),51);}catch(Exception e){fileCallback.onReceiveValue(null);fileCallback=null;toast("No file picker is available.");}return true;
             }
         });
-        actions(browserBox,button("Reload",()->web.reload()),button("Forward",()->{if(web.canGoForward())web.goForward();}),button("Desktop",()->{
-            desktopMode=!desktopMode;String ua=WebSettings.getDefaultUserAgent(this);
-            if(desktopMode)ua=ua.replaceAll("Linux; Android[^)]*","X11; Linux x86_64").replace("; wv","").replaceAll(" Version/[0-9.]+","").replace(" Mobile","");
-            web.getSettings().setUserAgentString(ua);web.reload();toast(desktopMode?"Desktop user agent enabled.":"Mobile user agent enabled.");
-        }),button("Analyze page",()->select("Analyze")),button("External browser",()->{
-            String url=web.getUrl();if(url!=null&&(url.startsWith("https://")||url.startsWith("http://")))try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception e){toast("No external browser available.");}
-        }));
-        browserBox.addView(web,new LinearLayout.LayoutParams(-1,0,1));content.addView(browserBox,new LinearLayout.LayoutParams(-1,0,1));
-        panelHost=column();content.addView(panelHost,new LinearLayout.LayoutParams(-1,0,1));
-        buildNetwork();buildRepeater();buildConsole();buildElements();buildAnalyze();buildTerminal();buildWorkspace();
-        status=label("Ready · local workspace",10,MUTED);status.setMaxLines(1);root.addView(status);setContentView(root);root.requestFocus();
+        tab.view=web;return web;
     }
+    private void newTab(String url){
+        if(browserTabs.size()>=8){toast("Close a tab first (8-tab memory limit).");return;}
+        BrowserTab tab=new BrowserTab();createWeb(tab);browserTabs.add(tab);activateTab(tab);
+        if(url==null)tab.view.loadUrl("https://bb.invalid/start");else tab.view.loadUrl(url);
+        select("Browser");
+    }
+    private void activateTab(BrowserTab tab){
+        if(activeTab!=null)activeTab.view.onPause();activeTab=tab;web=tab.view;captures=tab.captures;logs=tab.logs;
+        webHost.removeAllViews();webHost.addView(web,new FrameLayout.LayoutParams(-1,-1));web.onResume();
+        String url=web.getUrl();address.setText(url==null||url.startsWith("https://bb.invalid/")?"":url);
+        consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));renderNetwork();renderTabs();
+    }
+    private void renderTabs(){
+        siteTabs.removeAllViews();for(BrowserTab tab:browserTabs){LinearLayout chip=row();chip.setBackground(box(tab==activeTab?CARD:BG));
+            TextView title=label(tab.title,12,tab==activeTab?INK:MUTED);title.setSingleLine(true);title.setEllipsize(android.text.TextUtils.TruncateAt.END);title.setContentDescription("Switch tab "+tab.title);title.setOnClickListener(v->activateTab(tab));
+            chip.addView(title,new LinearLayout.LayoutParams(dp(100),dp(40)));Button close=icon("×","Close tab "+tab.title,()->closeTab(tab));chip.addView(close,new LinearLayout.LayoutParams(dp(36),dp(40)));siteTabs.addView(chip);}
+    }
+    private void closeTab(BrowserTab tab){
+        if(!browserTabs.contains(tab))return;boolean active=tab==activeTab;browserTabs.remove(tab);
+        if(active){webHost.removeAllViews();activeTab=null;}tab.view.stopLoading();tab.view.destroy();
+        if(browserTabs.isEmpty())newTab(null);else if(active)activateTab(browserTabs.get(browserTabs.size()-1));else renderTabs();
+    }
+    void openLab(){if(lab==null){toast("Local lab is starting. Try again.");return;}web.loadUrl(lab.url());select("Browser");}
+    private void browserMenu(){new AlertDialog.Builder(this).setTitle("Browser").setItems(new String[]{"New tab","Local lab","Forward","Desktop site","Open externally","Workspace"},(d,which)->{
+        switch(which){case 0:newTab(null);break;case 1:openLab();break;case 2:if(web.canGoForward())web.goForward();break;
+        case 3:activeTab.desktop=!activeTab.desktop;String ua=WebSettings.getDefaultUserAgent(this);if(activeTab.desktop)ua=ua.replaceAll("Linux; Android[^)]*","X11; Linux x86_64").replace("; wv","").replace(" Mobile","");web.getSettings().setUserAgentString(ua);web.reload();break;
+        case 4:String url=web.getUrl();if(url!=null&&!url.startsWith("https://bb.invalid/")&&(url.startsWith("https://")||url.startsWith("http://")))try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception e){toast("No browser available.");}break;
+        case 5:select("Workspace");break;}
+    }).show();}
     private void select(String name) {
-        selected=name;boolean browser=name.equals("Browser"),split=name.equals("Console")||name.equals("Elements");
+        root.getChildAt(0).setVisibility(name.equals("Terminal")||name.equals("Workspace")?View.GONE:View.VISIBLE);
+        root.getChildAt(1).setVisibility(name.equals("Terminal")||name.equals("Workspace")?View.GONE:View.VISIBLE);
+        loading.setVisibility(View.INVISIBLE);
+        selected=name;boolean browser=name.equals("Browser"),tool=tabs.containsKey(name)&&!name.equals("Terminal")&&!name.equals("Workspace")&&!browser;
+        if(tool)lastTool=name;
+        navigationScroll.setVisibility(tool?View.VISIBLE:View.GONE);toolHeader.setVisibility(tool?View.VISIBLE:View.GONE);
+        boolean split=tool&&splitTools;
         browserBox.setVisibility(browser||split?View.VISIBLE:View.GONE);panelHost.setVisibility(browser?View.GONE:View.VISIBLE);
         boolean landscape=getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
         content.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
-        browserBox.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,browser?1:0.42f));
-        panelHost.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,0.58f));
+        browserBox.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,browser?1:0.4f));
+        panelHost.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,0.6f));
         panelHost.removeAllViews();View panel=panels.get(name);if(panel!=null)panelHost.addView(panel,new LinearLayout.LayoutParams(-1,-1));
-        for(Map.Entry<String,Button> entry:tabs.entrySet()){boolean active=entry.getKey().equals(name);entry.getValue().setTextColor(active?BG:MUTED);entry.getValue().setBackground(box(active?ACCENT:CARD));}
-        navigationScroll.post(()->{Button active=tabs.get(selected);if(active!=null)navigationScroll.smoothScrollTo(Math.max(0,active.getLeft()-dp(80)),0);});
+        for(Map.Entry<String,Button> entry:tabs.entrySet()){boolean active=entry.getKey().equals(name)||(tool&&entry.getKey().equals("Tools"));entry.getValue().setTextColor(active?ACCENT:MUTED);entry.getValue().setBackgroundColor(active?CARD:Color.TRANSPARENT);}
         if(name.equals("Network"))renderNetwork();
-        if(status!=null)status.setText(name+" · BB Cyber Studio");
+        if(status!=null)status.setText(name+" · "+(activeTab==null?"":activeTab.title));
     }
     private void navigate() {
-        String url=address.getText().toString().trim();if(!url.contains(":"))url="https://"+url;
+        String url=address.getText().toString().trim();if(url.isEmpty())return;if(!url.contains(":")&&(url.contains(" ")||!url.contains(".")))url="https://duckduckgo.com/?q="+Uri.encode(url);else if(!url.contains(":"))url="https://"+url;
         try { // Fragments are valid for browsing, unlike native request replay.
             Uri parsed=Uri.parse(url);String scheme=parsed.getScheme();
             if((!"https".equalsIgnoreCase(scheme)&&!"http".equalsIgnoreCase(scheme))||parsed.getHost()==null)throw new IllegalArgumentException("Enter an HTTP(S) address.");
@@ -267,6 +324,7 @@ public final class MainActivity extends Activity {
         String script="(function(){try{var v=(0,eval)("+JSONObject.quote(source)+");if(v&&typeof v.then==='function')return 'Promise returned; use console.log in .then() to inspect its value';return typeof v==='string'?v:(typeof v==='undefined'?'undefined':JSON.stringify(v,null,2));}catch(e){return e.name+': '+e.message;}})()";
         web.evaluateJavascript(script,value->{try{addLog(String.valueOf(new JSONTokener(value).nextValue()));}catch(Exception e){addLog(value);}});
     }
+    private void addTabLog(BrowserTab tab,String message){if(message.length()>8000)message=message.substring(0,8000);if(tab.logs.size()>=200)tab.logs.remove(0);tab.logs.add(message);if(tab==activeTab&&consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",tab.logs));}
     private void addLog(String message){if(message.length()>8000)message=message.substring(0,8000)+"\n[Truncated]";if(logs.size()>=200)logs.remove(0);logs.add(message);if(consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));}
     private void buildElements(){
         LinearLayout body=panel("Elements","DOM inspector","Read an element snapshot or change an inline style. Top-level document only; changes disappear on reload.");
@@ -281,11 +339,24 @@ public final class MainActivity extends Activity {
         }));elementsOutput=output("Enter a CSS selector, then Inspect.");body.addView(elementsOutput);
     }
     private void buildTerminal(){
-        LinearLayout body=panel("Terminal","Termux commands","Real commands via the installed Termux app. This alpha is a command runner, not an embedded interactive PTY. Output appears when the command finishes.");
-        commandInput=edit("Shell command to run in Termux",4);commandInput.setTypeface(Typeface.MONOSPACE);commandInput.setText("pwd && python --version");body.addView(commandInput);
-        actions(body,button("Run in Termux",this::runTermux),button("Open Termux",this::openTermux),button("Setup",this::termuxSetup));
-        actions(body,button("Clear output",()->{TermuxResultReceiver.lastResult="";terminalOutput.setText("");}));terminalOutput=output("No command result yet.");body.addView(terminalOutput);
+        LinearLayout body=column();body.setPadding(dp(12),0,dp(12),dp(4));body.setBackgroundColor(0xff080d15);panels.put("Terminal",body);
+        LinearLayout top=row();TextView title=label("›_  Terminal",16,INK);top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        top.addView(button("New session",this::startLocalShell));top.addView(button("Termux",()->new AlertDialog.Builder(this).setTitle("Termux integration").setItems(new String[]{"Open interactive Termux","Run input in Termux","Connection setup"},(d,n)->{if(n==0)openTermux();else if(n==1)runTermux();else termuxSetup();}).show()));body.addView(top);
+        body.addView(label("LOCAL SHELL  ·  Android sandbox  ·  live output",10,ACCENT));
+        terminalOutput=output("BB Cyber Studio / local shell\n\nA persistent Android shell in this app's private folder.\nSupports cd, pipes and Android commands.\nNo root, pkg, Python or interactive TUI is bundled.\nUse Termux above for your full Linux environment.\n\nType a command below to start.\n");terminalOutput.setBackgroundColor(0xff080d15);terminalOutput.setTextSize(13);terminalOutput.setPadding(0,dp(12),0,dp(12));
+        terminalScroll=new ScrollView(this);terminalScroll.setFillViewport(true);terminalScroll.addView(terminalOutput);body.addView(terminalScroll,new LinearLayout.LayoutParams(-1,0,1));
+        actions(body,button("↑",()->terminalHistory(-1)),button("↓",()->terminalHistory(1)),button("/",()->insertCommand("/")),button("-",()->insertCommand("-")),button("|",()->insertCommand("|")),button("Clear",()->terminalOutput.setText("")),button("Stop",()->{if(localShell!=null){localShell.close();localShell=null;appendTerminal("\n[Session stopped]\n");}}));
+        LinearLayout input=row();input.addView(label("$",18,ACCENT));commandInput=edit("Enter shell command",1);commandInput.setTypeface(Typeface.MONOSPACE);commandInput.setImeOptions(EditorInfo.IME_ACTION_SEND);
+        commandInput.setOnEditorActionListener((v,action,event)->{if(action==EditorInfo.IME_ACTION_SEND){sendLocalCommand();return true;}return false;});
+        input.addView(commandInput,new LinearLayout.LayoutParams(0,-2,1));input.addView(button("Run",this::sendLocalCommand));body.addView(input);
     }
+    private void appendTerminal(String text){if(destroyed)return;String all=terminalOutput.getText()+text;if(all.length()>100000)all=all.substring(all.length()-100000);terminalOutput.setText(all);terminalScroll.post(()->terminalScroll.fullScroll(View.FOCUS_DOWN));}
+    private void startLocalShell(){if(localShell!=null)localShell.close();try{localShell=new LocalShell(getFilesDir(),text->runOnUiThread(()->appendTerminal(text)));appendTerminal("\n[New local session]\n");}catch(Exception e){appendTerminal("\n"+e.getMessage()+"\n");}}
+    private void sendLocalCommand(){String command=commandInput.getText().toString();if(command.trim().isEmpty())return;if(command.length()>4096){toast("Local command limit: 4096 characters.");return;}if(localShell==null)startLocalShell();if(localShell==null)return;
+        try{localShell.send(command);commandHistory.add(command);if(commandHistory.size()>100)commandHistory.remove(0);historyIndex=commandHistory.size();appendTerminal("$ "+command+"\n");commandInput.setText("");}catch(Exception e){appendTerminal(e.getMessage()+"\n");}
+    }
+    private void terminalHistory(int change){historyIndex=Math.max(0,Math.min(commandHistory.size(),historyIndex+change));commandInput.setText(historyIndex==commandHistory.size()?"":commandHistory.get(historyIndex));commandInput.setSelection(commandInput.length());}
+    private void insertCommand(String text){int at=Math.max(0,commandInput.getSelectionStart());commandInput.getText().insert(at,text);commandInput.requestFocus();}
     private void buildAnalyze(){
         LinearLayout body=panel("Analyze","Page intelligence","Inspect the loaded page, or review response headers with a separate request. Observations are not confirmed vulnerabilities.");
         TextView result=output("Open a website, then choose Page map or Review headers. The local lab works here too.");
@@ -338,10 +409,10 @@ public final class MainActivity extends Activity {
             try{String content=WorkspaceStore.load(this);if(content==null){toast("No saved workspace.");return;}JSONObject data=new JSONObject(content);projectName.setText(data.getString("name"));chooseMethod(data.getString("method"));requestUrl.setText(data.getString("url"));requestHeaders.setText(data.getString("headers"));requestBody.setText(data.getString("body"));select("Repeater");toast("Request loaded. Review before sending.");}catch(Exception e){toast("Load failed: "+e.getMessage());}
         }));
         actions(body,button("Delete saved request",()->confirm("Delete workspace?","The saved encrypted request will be removed.",()->{try{WorkspaceStore.delete(this);toast("Saved request deleted.");}catch(Exception e){toast(e.getMessage());}})),button("Clear browser data",()->confirm("Clear browser data?","Stops the page, clears cookies, web storage, cache and history, and removes captured request metadata.",()->{
-            web.stopLoading();web.loadUrl("about:blank");CookieManager.getInstance().removeAllCookies(done->CookieManager.getInstance().flush());WebStorage.getInstance().deleteAllData();web.clearCache(true);web.clearHistory();captures.clear();renderNetwork();logs.clear();consoleOutput.setText("");toast("Browser data cleared.");
+            for(BrowserTab tab:browserTabs){tab.view.stopLoading();tab.view.loadUrl("about:blank");tab.view.clearHistory();tab.captures.clear();tab.logs.clear();}CookieManager.getInstance().removeAllCookies(done->CookieManager.getInstance().flush());WebStorage.getInstance().deleteAllData();web.clearCache(true);web.clearHistory();captures.clear();renderNetwork();logs.clear();consoleOutput.setText("");toast("Browser data cleared.");
         })));
         body.addView(label("WHAT WORKS",12,ACCENT));body.addView(label("Browser · request metadata · JavaScript console · DOM snapshot/style editor · native HTTP Repeater · response comparison · curl export · Termux command results · encrypted request save · offline local lab.",14,INK));
-        body.addView(label("NEXT MILESTONES",12,ACCENT));body.addView(label("Full HTTP(S) proxy and Intercept, response/body capture, embedded interactive terminal, browser tabs and isolated profiles, HAR import/export, WebSocket inspection. These are not included in 0.1.",14,MUTED));
+        body.addView(label("NEXT MILESTONES",12,ACCENT));body.addView(label("Full HTTP(S) proxy and Intercept, response/body capture, embedded interactive terminal, isolated browser profiles, HAR import/export, WebSocket inspection. These are not included in 0.2.",14,MUTED));
         body.addView(label("BB Cyber Studio · Between Bytes\nNative Android alpha · no analytics, account or cloud backend.\nRequests go only to destinations you open or send to. Local lab addresses change after restarting the app.",12,MUTED));
         actions(body,button("Source & issues",()->new AlertDialog.Builder(this).setTitle("GitHub").setMessage("Open the public repository in your browser?").setPositiveButton("Open",(d,w)->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://github.com/khdertaysh1/BB-cyber-studio")))).setNegativeButton("Cancel",null).show()));
     }
@@ -358,5 +429,5 @@ public final class MainActivity extends Activity {
             fileCallback.onReceiveValue(uris);fileCallback=null;
         }
     }
-    @Override protected void onDestroy(){destroyed=true;TermuxResultReceiver.listener=null;if(fileCallback!=null){fileCallback.onReceiveValue(null);fileCallback=null;}http.shutdownNow();if(lab!=null)try{lab.close();}catch(Exception ignored){}web.stopLoading();web.destroy();super.onDestroy();}
+    @Override protected void onDestroy(){destroyed=true;TermuxResultReceiver.listener=null;if(fileCallback!=null){fileCallback.onReceiveValue(null);fileCallback=null;}http.shutdownNow();if(lab!=null)try{lab.close();}catch(Exception ignored){}if(localShell!=null)localShell.close();for(BrowserTab tab:browserTabs){tab.view.stopLoading();tab.view.destroy();}super.onDestroy();}
 }

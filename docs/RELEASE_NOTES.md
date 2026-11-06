@@ -1,3 +1,8 @@
+## 0.2 browser-first redesign
+Compact address bar, up to 8 website tabs with separate console/request histories, full-page tools with optional split mode, and fixed bottom navigation. English controls remain LTR on Arabic devices. Cookies and website storage are shared across tabs.
+
+The Terminal now includes a persistent local Android shell with live output, command history and working-directory state. It uses pipes, not a PTY: no bundled Linux packages, Python, or full-screen interactive programs. The separate Termux integration remains available. APK size stays small because Android supplies WebView and the system shell.
+
 # BB Cyber Studio · Android alpha
 
 Download **BB-cyber-studio.apk** below. Android 8.0+; no root required. No account or cloud backend. Termux is an optional separate installation.
@@ -8,7 +13,7 @@ This foundation includes a browser, JavaScript console, DOM/style inspector, obs
 
 ## Current limits
 
-- This is not full Burp Suite or Chrome DevTools. Full HTTPS interception, browser request/response body capture, interactive embedded PTY, WebSocket inspection and isolated tabs/profiles are not implemented.
+- This is not full Burp Suite or Chrome DevTools. Full HTTPS interception, browser request/response body capture, interactive embedded PTY, WebSocket inspection and isolated profiles are not implemented.
 - Network lists available WebView request metadata. Repeater performs separate HTTP requests; browser cookies are not automatically shared.
 - Header analysis is a separate unauthenticated GET. Missing headers are observations, not proof of a vulnerability.
 - Some websites and login providers reject embedded WebViews. No universal website compatibility is claimed.

@@ -1,3 +1,8 @@
+## 0.2 browser-first redesign
+Compact address bar, up to 8 website tabs with separate console/request histories, full-page tools with optional split mode, and fixed bottom navigation. English controls remain LTR on Arabic devices. Cookies and website storage are shared across tabs.
+
+The Terminal now includes a persistent local Android shell with live output, command history and working-directory state. It uses pipes, not a PTY: no bundled Linux packages, Python, or full-screen interactive programs. The separate Termux integration remains available. APK size stays small because Android supplies WebView and the system shell.
+
 # BB Cyber Studio
 
 **An Android workspace for web development and security research.**
@@ -14,7 +19,7 @@ The easiest option is [Releases](https://github.com/khdertaysh1/BB-cyber-studio/
 
 1. Open [Actions → Android APK](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml).
 2. Choose a **successful** run for the branch you want. Scroll to **Artifacts**.
-3. Download `BB-cyber-studio-0.1.0-alpha-debug`, extract the ZIP, and install `app-debug.apk`.
+3. Download `BB-cyber-studio-0.2.0-alpha-debug`, extract the ZIP, and install `app-debug.apk`.
 4. GitHub requires sign-in to download Actions artifacts. You may need to allow APK installation for your browser/files app.
 
 These are development APKs signed with a CI debug key. Different runs may require uninstalling the previous build, which deletes its local data. Stable signed releases are a later milestone; never commit signing keys.
