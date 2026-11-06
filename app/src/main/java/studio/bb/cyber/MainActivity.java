@@ -318,9 +318,9 @@ public final class MainActivity extends Activity {
                 if(Build.VERSION.SDK_INT>=31)flags|=PendingIntent.FLAG_MUTABLE;
                 PendingIntent pending=PendingIntent.getBroadcast(this,pendingId,callback,flags);
                 Intent intent=new Intent("com.termux.RUN_COMMAND");intent.setClassName("com.termux","com.termux.app.RunCommandService");
-                intent.putExtra("com.termux.RUN_COMMAND_PATH","/data/data/com.termux/files/usr/bin/bash");
+                intent.putExtra("com.termux.RUN_COMMAND_PATH","$PREFIX/bin/bash");
                 intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS",new String[]{"-lc",command});
-                intent.putExtra("com.termux.RUN_COMMAND_WORKDIR","/data/data/com.termux/files/home");
+                intent.putExtra("com.termux.RUN_COMMAND_WORKDIR","~/");
                 intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND",true);intent.putExtra("com.termux.RUN_COMMAND_PENDING_INTENT",pending);
                 intent.putExtra("com.termux.RUN_COMMAND_COMMAND_LABEL","BB Cyber Studio");
                 android.content.ComponentName started=startService(intent);
