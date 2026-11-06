@@ -117,7 +117,16 @@ public final class MainActivity extends Activity {
     }
     private LinearLayout panel(String name,String title,String caption) {
         LinearLayout body=column();body.setPadding(dp(12),dp(8),dp(12),dp(18));
-        TextView heading=label(title,18,INK);heading.setTypeface(null,Typeface.BOLD);body.addView(heading);body.addView(label(caption,12,MUTED));
+        TextView heading=label(title,18,INK);heading.setTypeface(null,Typeface.BOLD);
+        LinearLayout headingRow=row();headingRow.addView(heading,new LinearLayout.LayoutParams(0,-2,1));headingRow.addView(icon("ⓘ","About "+name,()->showText(title,caption)));body.addView(headingRow);
+        String hint=caption;
+        if(name.equals("Network"))hint="Requests from this tab · tap a row to inspect";
+        else if(name.equals("Console"))hint="Run JavaScript in the active tab";
+        else if(name.equals("Elements"))hint="Inspect an element or edit its style";
+        else if(name.equals("Repeater"))hint="Edit a request · send · inspect the response";
+        else if(name.equals("Analyze"))hint="Page structure and response-header review";
+        else if(name.equals("Workspace"))hint="Saved requests and browser data";
+        body.addView(label(hint,12,MUTED));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(body);panels.put(name,scroll);return body;
     }
     @SuppressLint("SetJavaScriptEnabled") private void buildUi() {
