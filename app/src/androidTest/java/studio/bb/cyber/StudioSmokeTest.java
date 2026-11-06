@@ -38,13 +38,14 @@ public class StudioSmokeTest {
         while(System.currentTimeMillis()<deadline){scenario.onActivity(a->found[0]=contains(a.getWindow().getDecorView(),text));if(found[0])return;Thread.sleep(100);}
         fail("Timed out waiting for "+text);
     }
+    private void shellCommand(String command) throws Exception {
+        android.os.ParcelFileDescriptor pipe=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(command);
+        try(java.io.InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(pipe)){byte[] data=new byte[512];while(in.read(data)!=-1){}}
+    }
     private void screenshot(String name) throws Exception {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();Thread.sleep(150);
-        Bitmap bitmap=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-        if(bitmap!=null){File dir=InstrumentationRegistry.getInstrumentation().getTargetContext().getFilesDir();try(FileOutputStream output=new FileOutputStream(new File(dir,name+".png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,output);}bitmap.recycle();
-            android.os.ParcelFileDescriptor pipe=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("mkdir -p /data/local/tmp/bb-shots; run-as studio.bb.cyber cat files/"+name+".png > /data/local/tmp/bb-shots/"+name+".png");
-            try(java.io.FileInputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(pipe)){byte[] data=new byte[256];while(in.read(data)!=-1){}}
-        }
+        shellCommand("mkdir -p /data/local/tmp/bb-shots");
+        shellCommand("screencap -p /data/local/tmp/bb-shots/"+name+".png");
     }
     @Test public void browserConsoleRepeaterAndPanelsWork() throws Exception {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
