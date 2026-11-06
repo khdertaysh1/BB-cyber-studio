@@ -23,4 +23,4 @@ Test on Android 8+ and Android 15 with a recent WebView:
 - Rotate during a request; ensure no callback crashes. Rotation keeps the active workspace and switches the console/DOM layout to side-by-side panels in landscape. Process death still loses unsaved in-memory state.
 - Small screen, large font, keyboard open and landscape: controls remain reachable using scrolling.
 
-The current terminal runner is completion-based and has no streaming/cancel/interactive input. Device-specific execution and the UI need real-device testing in addition to CI.
+The Termux handoff is completion-based. The local Android shell streams output, keeps cwd and supports line input and session stop; it is not a PTY. Device-specific execution and the UI need real-device testing in addition to CI.

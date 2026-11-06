@@ -21,7 +21,9 @@
 ## 0.3 — full workspace
 
 - [ ] Authenticated embedded interactive PTY with streaming and cancellation
-- [ ] Browser tabs and isolated profiles
+- [x] Browser tabs with separate console/request lists (0.2)
+- [x] Browser-first layout and streamed local Android shell (0.2)
+- [ ] Isolated browser profiles
 - [ ] HAR import/export with explicit secret review
 - [ ] WebSocket inspection, richer response comparison and searchable history
 - [ ] Arabic localization, tablet layout, persistent UI state

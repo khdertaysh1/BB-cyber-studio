@@ -11,7 +11,7 @@ Browser • JavaScript console • DOM inspector • HTTP Repeater • Termux co
 
 [![Android APK](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml/badge.svg)](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml)
 
-**0.1.0 alpha** — a working foundation, not a complete Burp Suite replacement. No root, account, analytics or hosted backend. Android 8.0+; an updated Android System WebView is recommended.
+**0.2.0 alpha** — a working foundation, not a complete Burp Suite replacement. No root, account, analytics or hosted backend. Android 8.0+; an updated Android System WebView is recommended.
 
 ## Install from GitHub on your phone
 
@@ -26,8 +26,8 @@ These are development APKs signed with a CI debug key. Different runs may requir
 
 ## Try it without an external service
 
-1. Launch the app. Its **Local lab** runs on your phone's loopback interface.
-2. Tap **Send GET** on the lab page, then select **Network**.
+1. Launch the app. Tap **Local lab** on the start page (or in the ⋮ menu). It runs on your phone's loopback interface.
+2. Tap **Send GET** on the lab page, then select **Tools → Network**.
 3. Tap the echo request → **To Repeater** → **Send request**. Inspect the actual HTTP response.
 4. Change its query string, send again, then **Compare last two**.
 5. In **Console**, evaluate `document.title` or `document.body.style.background = '#183247'`.
@@ -38,9 +38,9 @@ The local lab is reachable only at `127.0.0.1` using an unguessable per-launch U
 
 ## Implemented vs planned
 
-| Feature | 0.1 alpha |
+| Feature | 0.2 alpha |
 |---|---|
-| Embedded browser | One WebView with back navigation, URL bar and local lab |
+| Embedded browser | Up to 8 website tabs, compact address bar, back/reload/menu and local lab |
 | Network | Up to 200 observed request URLs, methods and available headers; filtering and transfer to Repeater |
 | Repeater | GET, POST, PUT, DELETE, HEAD, OPTIONS; editable headers/body; verified TLS; bounded response viewer |
 | Redirects / cookies | Redirects displayed without following; browser cookies are not automatically shared with Repeater |
@@ -48,13 +48,13 @@ The local lab is reachable only at `127.0.0.1` using an unguessable per-launch U
 | Elements | CSS selector → DOM snapshot; inline CSS editing |
 | Analyze | Live DOM map of links/scripts/forms, HTTP asset references on HTTPS, separate response-header review with cookie values omitted |
 | Browser compatibility | Upload file picker, mobile/desktop user-agent switch, zoom, reload/forward and external-browser handoff |
-| Terminal | Real Termux background commands, completed stdout/stderr/exit code; button to open interactive Termux |
+| Terminal | Persistent local Android shell with streamed output and history; separate Termux command handoff |
 | Workspace | One explicitly saved request encrypted using Android Keystore; delete and browser-data clearing controls |
 | HTTP(S) interception | **Not implemented** — Network is metadata observation, not a MITM proxy |
 | Captured bodies/status | **Not implemented** for browser traffic; Repeater shows responses to its own requests |
 | Full DevTools | Not included: JS breakpoints, source debugger, iframe/worker inspection, element picking |
-| Interactive embedded PTY | Planned; the current command runner does not stream output or accept stdin |
-| WebSocket, HAR, profiles, tabs | Planned |
+| Interactive embedded PTY | Planned; the local shell uses pipes rather than a PTY |
+| WebSocket, HAR, isolated profiles | Planned |
 
 WebView callbacks do not see every redirect, service-worker request, cached resource or WebSocket frame. Imported request metadata may omit cookies and bodies. Review every request before sending. Native HTTP framing headers are managed by the client; raw protocol fuzzing and duplicate headers are not supported.
 
@@ -74,9 +74,9 @@ nano ~/.termux/termux.properties
 termux-reload-settings
 ```
 
-Grant **BB Cyber Studio → Permissions → Additional permissions → Run commands in Termux environment**. The app can request this permission with **Run in Termux**. Run `pwd` first. Termux remains a separate dependency in this release.
+Grant **BB Cyber Studio → Permissions → Additional permissions → Run commands in Termux environment**. The app can request this permission with **Terminal → Termux → Run input in Termux**. Run `pwd` first. Termux remains a separate dependency in this release.
 
-Commands run under Termux's user and permissions, after confirmation in the native UI. Results appear on completion; use **Open Termux** for interactive programs. OEM battery restrictions can interrupt execution. Upstream integration reference: [RUN_COMMAND](https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent).
+Commands run under Termux's user and permissions, after confirmation in the native UI. Results appear on completion; use **Termux → Open interactive Termux** for interactive programs. OEM battery restrictions can interrupt execution. Upstream integration reference: [RUN_COMMAND](https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent).
 
 ## Build
 
@@ -106,4 +106,4 @@ See [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), and [roadm
 
 لتجربة النسخة: من **Actions** افتح بناء ناجح، ونزّل ملف APK من **Artifacts** وفك الضغط وثبّته. جرّب **Local lab** ثم **Network → To Repeater → Send request**.
 
-النسخة الأولى تعرض معلومات طلبات المتصفح، وليست اعتراض HTTPS كاملاً. الطرفية تشغّل أوامر حقيقية عبر Termux وتعرض نتيجتها عند الانتهاء؛ الطرفية التفاعلية المدمجة ضمن خطة التطوير. واجهة التطبيق حالياً بالإنكليزي، والترجمة العربية الكاملة لاحقاً.
+النسخة الأولى تعرض معلومات طلبات المتصفح، وليست اعتراض HTTPS كاملاً. الطرفية المحلية تشغّل أوامر أندرويد وتعرض النتائج مباشرة وتحفظ مسار العمل. بيئة Linux وPython متاحة عبر ربط Termux المنفصل؛ محاكي PTY كامل غير مدمج. واجهة التطبيق حالياً بالإنكليزي، والترجمة العربية الكاملة لاحقاً.

@@ -90,4 +90,4 @@ jobs:
         run: |
           mv apk/app-debug.apk apk/BB-cyber-studio.apk
           sha256sum apk/BB-cyber-studio.apk > apk/SHA256SUMS.txt
-          gh release create "$TAG" apk/BB-cyber-studio.apk apk/SHA256SUMS.txt --target "$GITHUB_SHA" --title "BB Cyber Studio 0.1 — Android alpha" --notes-file docs/RELEASE_NOTES.md --prerelease
+          gh release create "$TAG" apk/BB-cyber-studio.apk apk/SHA256SUMS.txt --target "$GITHUB_SHA" --title "BB Cyber Studio 0.2 — Android alpha" --notes-file docs/RELEASE_NOTES.md --prerelease

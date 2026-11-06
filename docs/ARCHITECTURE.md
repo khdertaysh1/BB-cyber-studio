@@ -1,12 +1,12 @@
 # Architecture
 
-Native `MainActivity` owns all trusted controls. A single untrusted Android WebView renders target content. Native controls evaluate JavaScript only on an explicit user action and receive string results through `evaluateJavascript`; no page-callable Java bridge exists.
+Native `MainActivity` owns all trusted controls. Up to eight untrusted Android WebViews render target content. Each has its own navigation, request list and console log, with shared WebView cookies/storage. Native controls evaluate JavaScript only on an explicit user action and receive string results through `evaluateJavascript`; no page-callable Java bridge exists.
 
 `WebViewClient.shouldInterceptRequest` observes metadata and returns `null` so WebView continues its normal network stack. It is deliberately not presented as a complete network capture. `WebChromeClient` receives console messages.
 
 `RequestSpec` validates HTTP(S) URLs, headers, method and body, and performs POSIX shell quoting for explicit curl export. `HttpRunner` runs off the UI thread with platform TLS, no redirects, 15-second connect/read timeouts, a 1 MiB response cap and no browser-cookie synchronization. Read timeout is an inactivity timeout, not an overall deadline. Native framing headers and duplicate headers are rejected.
 
-`WorkspaceStore` saves a single request using AES-GCM and Android Keystore. `TermuxResultReceiver` receives only explicit PendingIntent callbacks. Terminal commands originate solely from the native editor and require confirmation. Results are memory-only. Termux lifecycle/battery management remains outside this app.
+`WorkspaceStore` saves a single request using AES-GCM and Android Keystore. `TermuxResultReceiver` receives only explicit PendingIntent callbacks. Termux commands originate solely from the native editor and require confirmation. Local Android shell commands run only when the user submits the native terminal input; LocalShell owns a persistent process and a background reader. No shell is exposed to website content. Results are memory-only. Termux lifecycle/battery management remains outside this app.
 
 `LabServer` is a small loopback HTTP fixture with a random URL prefix, bounded request size, socket timeout and bounded worker queue. It serves a bundled page and an echo endpoint. It has no file or shell access endpoints and should never be exposed on a network interface.
 

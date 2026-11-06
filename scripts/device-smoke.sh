@@ -28,6 +28,6 @@ adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 result=0
 gradle --no-daemon connectedDebugAndroidTest || result=$?
-adb pull /sdcard/Android/data/studio.bb.cyber/files/ device-screenshots/ || true
+adb pull /data/local/tmp/bb-shots/ device-screenshots/ || true
 adb logcat -d > device-logcat.txt
 exit "$result"

@@ -40,7 +40,10 @@ public class StudioSmokeTest {
     }
     private void screenshot(String name) throws Exception {
         Bitmap bitmap=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-        if(bitmap!=null){File dir=InstrumentationRegistry.getInstrumentation().getTargetContext().getExternalFilesDir(null);try(FileOutputStream output=new FileOutputStream(new File(dir,name+".png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,output);}bitmap.recycle();}
+        if(bitmap!=null){File dir=InstrumentationRegistry.getInstrumentation().getTargetContext().getFilesDir();try(FileOutputStream output=new FileOutputStream(new File(dir,name+".png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,output);}bitmap.recycle();
+            android.os.ParcelFileDescriptor pipe=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("mkdir -p /data/local/tmp/bb-shots; run-as studio.bb.cyber cat files/"+name+".png > /data/local/tmp/bb-shots/"+name+".png");
+            try(java.io.FileInputStream in=new java.io.FileInputStream(pipe.getFileDescriptor())){byte[] data=new byte[256];while(in.read(data)!=-1){}}finally{pipe.close();}
+        }
     }
     @Test public void browserConsoleRepeaterAndPanelsWork() throws Exception {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
@@ -66,11 +69,23 @@ public class StudioSmokeTest {
             tap(scenario,"Run");waitFor(scenario,"CWD=/");
             tap(scenario,"Browser");
             scenario.onActivity(a->{View plus=findDescription(a.getWindow().getDecorView(),"New tab");assertNotNull(plus);plus.performClick();});
-            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Evaluate");waitFor(scenario,"New tab");screenshot("07-tabs");
+            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Evaluate");waitFor(scenario,"New tab");Thread.sleep(300);
+            scenario.onActivity(a->{TextView out=(TextView)findDescription(a.getWindow().getDecorView(),"Console output");assertTrue(out.getText().toString().contains("New tab"));assertFalse(out.getText().toString().contains("BB · Local lab"));});screenshot("07-tabs");
             scenario.onActivity(a->{View old=findDescription(a.getWindow().getDecorView(),"Switch tab BB · Local lab");assertNotNull(old);old.performClick();});
             tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");
             tap(scenario,"Workspace");tap(scenario,"Save request");tap(scenario,"Load request");waitFor(scenario,"Request workbench");
         }
+    }
+    @Test public void englishChromeRemainsLtrWithArabicConfiguration() throws Exception {
+        Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.content.res.Configuration previous=new android.content.res.Configuration(context.getResources().getConfiguration());
+        android.content.res.Configuration arabic=new android.content.res.Configuration(previous);arabic.setLocale(new java.util.Locale("ar"));arabic.setLayoutDirection(new java.util.Locale("ar"));
+        context.getResources().updateConfiguration(arabic,context.getResources().getDisplayMetrics());
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
+            waitFor(scenario,"observed requests");
+            scenario.onActivity(a->{ViewGroup content=a.findViewById(android.R.id.content);assertEquals(View.LAYOUT_DIRECTION_LTR,content.getChildAt(0).getLayoutDirection());assertTrue(find(a.getWindow().getDecorView(),"Browser",true).isShown());});
+            screenshot("08-arabic-device");
+        }finally{context.getResources().updateConfiguration(previous,context.getResources().getDisplayMetrics());}
     }
     @Test public void workspaceEncryptionRoundTripAndDelete() throws Exception {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();

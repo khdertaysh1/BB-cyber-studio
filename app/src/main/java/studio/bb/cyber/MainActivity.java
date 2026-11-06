@@ -317,12 +317,12 @@ public final class MainActivity extends Activity {
         LinearLayout body=panel("Console","JavaScript console","Runs in the top-level page. Logs are in memory; max 200 entries. This is not the full Chrome debugger.");
         jsInput=edit("JavaScript expression or statements",2);jsInput.setTypeface(Typeface.MONOSPACE);jsInput.setText("document.title");body.addView(jsInput);
         actions(body,button("Evaluate",this::evaluate),button("Clear logs",()->{logs.clear();consoleOutput.setText("");}),button("Reload page",()->web.reload()));
-        consoleOutput=output("Page console messages appear here.");body.addView(consoleOutput);
+        consoleOutput=output("Page console messages appear here.");consoleOutput.setContentDescription("Console output");body.addView(consoleOutput);
     }
     private void evaluate(){
-        String source=jsInput.getText().toString();if(source.trim().isEmpty())return;addLog("> "+source);
+        String source=jsInput.getText().toString();if(source.trim().isEmpty())return;final BrowserTab evaluatedTab=activeTab;addLog("> "+source);
         String script="(function(){try{var v=(0,eval)("+JSONObject.quote(source)+");if(v&&typeof v.then==='function')return 'Promise returned; use console.log in .then() to inspect its value';return typeof v==='string'?v:(typeof v==='undefined'?'undefined':JSON.stringify(v,null,2));}catch(e){return e.name+': '+e.message;}})()";
-        web.evaluateJavascript(script,value->{try{addLog(String.valueOf(new JSONTokener(value).nextValue()));}catch(Exception e){addLog(value);}});
+        web.evaluateJavascript(script,value->{try{addTabLog(evaluatedTab,String.valueOf(new JSONTokener(value).nextValue()));}catch(Exception e){addTabLog(evaluatedTab,value);}});
     }
     private void addTabLog(BrowserTab tab,String message){if(message.length()>8000)message=message.substring(0,8000);if(tab.logs.size()>=200)tab.logs.remove(0);tab.logs.add(message);if(tab==activeTab&&consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",tab.logs));}
     private void addLog(String message){if(message.length()>8000)message=message.substring(0,8000)+"\n[Truncated]";if(logs.size()>=200)logs.remove(0);logs.add(message);if(consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));}
