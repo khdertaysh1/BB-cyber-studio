@@ -107,7 +107,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(5),0,dp(5));v.setLayoutParams(lp);return v;
     }
     private Button button(String title,Runnable action) {
-        Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextColor(ACCENT);b.setTextSize(12);b.setMinHeight(dp(48));b.setMinimumWidth(0);b.setMinWidth(0);b.setPadding(dp(12),0,dp(12),0);b.setStateListAnimator(null);
+        Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setSingleLine(true);b.setEllipsize(android.text.TextUtils.TruncateAt.END);b.setTextColor(ACCENT);b.setTextSize(12);b.setMinHeight(dp(48));b.setMinimumWidth(0);b.setMinWidth(0);b.setPadding(dp(12),0,dp(12),0);b.setStateListAnimator(null);
         b.setBackground(box(CARD)); b.setOnClickListener(v->action.run());
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(48));lp.setMargins(dp(2),dp(3),dp(2),dp(3));b.setLayoutParams(lp);return b;
     }
@@ -234,6 +234,7 @@ public final class MainActivity extends Activity {
         boolean split=tool&&splitTools;
         browserBox.setVisibility(browser||split?View.VISIBLE:View.GONE);panelHost.setVisibility(browser?View.GONE:View.VISIBLE);
         boolean landscape=getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        if(landscape&&tool){root.getChildAt(0).setVisibility(View.GONE);root.getChildAt(1).setVisibility(View.GONE);}
         content.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
         browserBox.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,browser?1:0.4f));
         panelHost.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,0.6f));
@@ -421,7 +422,7 @@ public final class MainActivity extends Activity {
     private void confirm(String title,String message,Runnable accepted){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setNegativeButton("Cancel",null).setPositiveButton("Continue",(d,w)->accepted.run()).show();}
     private void showText(String title,String value){ScrollView scroll=new ScrollView(this);scroll.addView(output(value));new AlertDialog.Builder(this).setTitle(title).setView(scroll).setPositiveButton("Close",null).show();}
     @Override public void onBackPressed(){if(!selected.equals("Browser")){select("Browser");return;}if(web.canGoBack())web.goBack();else super.onBackPressed();}
-    @Override public void onConfigurationChanged(android.content.res.Configuration configuration){super.onConfigurationChanged(configuration);select(selected);}
+    @Override public void onConfigurationChanged(android.content.res.Configuration configuration){super.onConfigurationChanged(configuration);select(selected);root.requestApplyInsets();root.post(()->{for(Button b:tabs.values()){b.setText(b.getText().toString());b.requestLayout();}root.requestLayout();});}
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
         if(requestCode==51&&fileCallback!=null){Uri[] uris=WebChromeClient.FileChooserParams.parseResult(resultCode,data);
