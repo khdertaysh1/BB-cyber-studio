@@ -54,7 +54,7 @@ public final class MainActivity extends Activity {
     private TextView status, consoleOutput, responseOutput, terminalOutput, elementsOutput;
     private EditText address, jsInput, requestUrl, requestHeaders, requestBody, commandInput, projectName, networkFilter;
     private Spinner method;
-    private Button sendButton, tabCounter, terminalModeButton;
+    private Button sendButton, tabCounter, terminalModeButton, consoleCopyButton;
     private TextView repeaterNotice, sheetLabel;
     private LinearLayout repeaterAdvanced;
     private TextView networkSummary;
@@ -293,7 +293,9 @@ public final class MainActivity extends Activity {
         if(activeTab!=null)activeTab.view.onPause();activeTab=tab;web=tab.view;captures=tab.captures;logs=tab.logs;
         webHost.removeAllViews();webHost.addView(web,new FrameLayout.LayoutParams(-1,-1));web.onResume();
         String url=web.getUrl();address.setText(url==null||url.startsWith("https://bb.invalid/")?"":url);
-        consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));renderNetwork();renderTabs();
+        consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));
+        if(consoleCopyButton!=null)consoleCopyButton.setEnabled(!tab.lastConsoleResult.isEmpty());
+        renderNetwork();renderTabs();
     }
     private void renderTabs(){
         if(tabCounter!=null)tabCounter.setText(String.valueOf(browserTabs.size()));
@@ -651,8 +653,9 @@ public final class MainActivity extends Activity {
         jsInput.setContentDescription("JavaScript input");body.addView(jsInput);
         Button run=button("Run",this::evaluate);
         run.setTextColor(0xff0b1d32);run.setBackground(box(ACCENT));
-        Button copyResult=button("Copy",this::copyConsoleResult);
-        actions(body,run,copyResult);
+        consoleCopyButton=button("Copy",this::copyConsoleResult);
+        consoleCopyButton.setEnabled(false);
+        actions(body,run,consoleCopyButton);
         consoleOutput=output("Run a JavaScript expression to see its result.");
         consoleOutput.setTextIsSelectable(true);
         consoleOutput.setContentDescription("Console output");
@@ -672,6 +675,8 @@ public final class MainActivity extends Activity {
         String source=jsInput.getText().toString();
         if(source.trim().isEmpty())return;
         final BrowserTab evaluatedTab=activeTab;
+        if(consoleCopyButton!=null)consoleCopyButton.setEnabled(false);
+        if(evaluatedTab!=null)evaluatedTab.lastConsoleResult="";
         addLog("> "+source);
         String script="(function(){try{var v=(0,eval)("+JSONObject.quote(source)+");if(v&&typeof v.then==='function')return 'Promise returned; use console.log in .then() to inspect its value';return typeof v==='string'?v:(typeof v==='undefined'?'undefined':JSON.stringify(v,null,2));}catch(e){return e.name+': '+e.message;}})()";
         web.evaluateJavascript(script,value->{
@@ -680,6 +685,8 @@ public final class MainActivity extends Activity {
             catch(Exception e){decoded=value;}
             if(evaluatedTab!=null)evaluatedTab.lastConsoleResult=decoded;
             addTabLog(evaluatedTab,decoded);
+            if(evaluatedTab==activeTab&&consoleCopyButton!=null)
+                consoleCopyButton.setEnabled(decoded!=null&&!decoded.isEmpty());
         });
     }
     private void addTabLog(BrowserTab tab,String message){if(message.length()>8000)message=message.substring(0,8000);if(tab.logs.size()>=200)tab.logs.remove(0);tab.logs.add(message);if(tab==activeTab&&consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",tab.logs));}
