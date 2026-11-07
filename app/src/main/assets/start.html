@@ -4,36 +4,29 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>New tab</title>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:#0b1018;color:#edf3fa;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{max-width:610px;margin:0 auto;padding:46px 22px 36px}
-.brand{display:flex;align-items:center;gap:12px;color:#acbbce;font-size:11px;letter-spacing:1.4px;font-weight:650}
-.mark{display:grid;place-items:center;background:#21354f;color:#77afff;border:1px solid #355379;width:40px;height:40px;border-radius:13px;font-size:16px;font-weight:850;letter-spacing:0}
-h1{font-weight:700;letter-spacing:-1.6px;font-size:34px;line-height:1.1;margin:53px 0 13px}
-.lead{font-size:14px;line-height:1.6;color:#99acc3;margin:0 0 28px}
-form{display:flex;align-items:center;background:#182435;border:1px solid #2d415a;border-radius:17px;padding:6px 8px 6px 16px;box-shadow:0 5px 18px #0509122e}
-input{flex:1;min-width:0;color:#edf3fa;background:none;border:0;outline:none;font:14px inherit;padding:12px 4px}
-input::placeholder{color:#8294aa}button{border:none;background:#77afff;color:#071320;font-weight:750;padding:10px 16px;border-radius:12px;font-size:15px}
-.headline{margin:38px 0 12px;font-weight:700;color:#e6edf7;font-size:12px;letter-spacing:.2px}
-.quick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-a{display:flex;flex-direction:column;min-height:122px;padding:18px;border:1px solid #26374c;border-radius:18px;background:#131d2b;color:inherit;text-decoration:none}
-a .symbol{font-size:23px;color:#77afff;margin-bottom:13px}a strong{font-size:14px}a small{font-size:11px;color:#96a9c1;margin-top:5px;line-height:1.35}
-footer{border-top:1px solid #202e42;margin-top:40px;padding-top:15px;color:#71869f;font-size:11px;line-height:1.8}
-@media(max-width:340px){main{padding:26px 16px}h1{font-size:28px;margin-top:35px}.quick{gap:8px}a{padding:12px}}
+:root{color-scheme:dark;--bg:#0c1420;--ink:#edf4ff;--muted:#9baec5;--line:#24364f;--surface:#152235;--blue:#75acfa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+main{max-width:620px;margin:0 auto;padding:clamp(30px,10vh,95px) 24px 42px}
+.brand{display:flex;align-items:center;gap:11px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1.3px}
+.mark{display:grid;place-items:center;background:#1e3552;color:#acd1ff;width:42px;height:42px;border:1px solid #345d88;border-radius:13px;font-size:16px;letter-spacing:0}
+h1{font-size:clamp(31px,8vw,47px);font-weight:680;letter-spacing:-1.7px;line-height:1.08;margin:42px 0 15px}
+p{max-width:390px;line-height:1.65;font-size:14px;color:var(--muted);margin:0 0 28px}
+form{display:flex;align-items:center;border:1px solid #3a506d;border-radius:18px;background:var(--surface);padding:6px 7px 6px 17px;box-shadow:0 16px 35px #0002}
+input{min-width:0;flex:1;background:transparent;border:0;outline:0;color:var(--ink);font:15px system-ui;padding:13px 3px}
+input::placeholder{color:#a0b0c5}button{border:0;background:var(--blue);color:#0b1d32;padding:12px 18px;border-radius:13px;font-weight:750;font-size:14px}
+.note{color:#8ea3bd;font-size:12px;margin-top:13px;padding-left:3px}
+.section{margin-top:55px;padding-top:17px;border-top:1px solid var(--line);font-size:12px;color:#829ab8;line-height:1.9}
+@media(max-width:350px){main{padding:35px 17px}h1{margin-top:35px}}
 </style>
 </head>
 <body><main>
 <div class="brand"><span class="mark">BB</span><span>BETWEEN BYTES<br>CYBER STUDIO</span></div>
-<h1>Welcome back.</h1>
-<p class="lead">Browse normally. Open developer tools only when you need them.</p>
-<form action="https://duckduckgo.com/" method="get">
-<input name="q" type="search" aria-label="Search the web" placeholder="Search the web or enter a query"><button type="submit" aria-label="Search">→</button>
+<h1>The web, in focus.</h1>
+<p>Browse websites and open your developer tools when you need them.</p>
+<form action="https://www.google.com/search" method="get">
+<input name="q" type="search" enterkeyhint="search" aria-label="Search Google" placeholder="Search with Google" autocomplete="off">
+<button type="submit" aria-label="Search Google">Search</button>
 </form>
-<div class="headline">QUICK ACCESS</div>
-<div class="quick">
-<a href="https://bb.invalid/local-lab"><span class="symbol">⌘</span><strong>Local lab</strong><small>Try request inspection offline</small></a>
-<a href="https://example.com"><span class="symbol">↗</span><strong>Example website</strong><small>Open a safe test page</small></a>
-</div>
-<footer>Browser-first Android workspace · Network · Console · Elements · Repeater.<br>
-Request metadata only; full HTTPS interception is not enabled.</footer>
+<div class="note">Google is the default search engine. Enter URLs in the browser address bar.</div>
+<div class="section">BROWSE · INSPECT · BUILD<br>Network / Console / Repeater / Elements · Your pages stay in the browser.</div>
 </main></body></html>
