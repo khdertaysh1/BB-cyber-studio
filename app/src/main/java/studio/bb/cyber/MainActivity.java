@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
 
 /** Native control surface. Untrusted pages never receive a JavaScript-to-native bridge. */
 public final class MainActivity extends Activity {
-    private static final int BG=0xff0b1018, CARD=0xff172231, INK=0xffedf3fa, MUTED=0xff9cacc1, ACCENT=0xff77afff;
+    private static final int BG=0xff0c1420, CARD=0xff152235, INK=0xffedf4ff, MUTED=0xff9baec5, ACCENT=0xff75acfa;
     private static final String TERMUX_PERMISSION="com.termux.permission.RUN_COMMAND";
     private LinearLayout root, browserBox, panelHost, networkRows, nav, siteTabs, bottomNav, toolHeader, tabLine, networkCategories, toolsSheet, urlBar;
     private FrameLayout webHost, stage;
@@ -54,7 +54,7 @@ public final class MainActivity extends Activity {
     private TextView status, consoleOutput, responseOutput, terminalOutput, elementsOutput;
     private EditText address, jsInput, requestUrl, requestHeaders, requestBody, commandInput, projectName, networkFilter;
     private Spinner method;
-    private Button sendButton, tabCounter;
+    private Button sendButton, tabCounter, terminalModeButton, consoleCopyButton;
     private TextView repeaterNotice, sheetLabel;
     private LinearLayout repeaterAdvanced;
     private TextView networkSummary;
@@ -65,7 +65,7 @@ public final class MainActivity extends Activity {
     private ArrayList<String> logs=new ArrayList<>();
     private final ExecutorService http=Executors.newSingleThreadExecutor();
     private String selected="Browser", latestResponse="", previousResponse="";
-    private boolean captureEnabled=true, destroyed=false, tabsExpanded=false, networkRefreshPending=false;
+    private boolean captureEnabled=true, destroyed=false, tabsExpanded=false, networkRefreshPending=false, useTermuxShell=false;
     private String networkCategory="All";
     private LabServer lab;
     private int pendingId=100;
@@ -74,6 +74,7 @@ public final class MainActivity extends Activity {
 
     private static final class BrowserTab {
         WebView view; String title="New tab"; boolean desktop;
+        String lastConsoleResult="";
         final ArrayList<Capture> captures=new ArrayList<>();
         final ArrayList<String> logs=new ArrayList<>();
     }
@@ -88,7 +89,7 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         buildUi();
-        TermuxResultReceiver.listener=result->runOnUiThread(()->{if(!destroyed)terminalOutput.setText(result);});
+        TermuxResultReceiver.listener=result->runOnUiThread(()->{if(!destroyed)appendTerminal("\n"+result+"\n");});
         if(!TermuxResultReceiver.lastResult.isEmpty())appendTerminal(TermuxResultReceiver.lastResult);
         http.execute(()->{try {
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();
@@ -102,7 +103,7 @@ public final class MainActivity extends Activity {
     private int dp(int value) { return Math.round(value*getResources().getDisplayMetrics().density); }
     private LinearLayout column() { LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);return v; }
     private LinearLayout row() { LinearLayout v=new LinearLayout(this);v.setGravity(Gravity.CENTER_VERTICAL);return v; }
-    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(14));d.setStroke(dp(1),0xff2a3b50);return d; }
+    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));d.setStroke(dp(1),0xff2c415d);return d; }
     private TextView label(String value,int size,int color) {
         TextView v=new TextView(this);v.setText(value);v.setTextSize(size);v.setTextColor(color);v.setPadding(dp(4),dp(5),dp(4),dp(5));return v;
     }
@@ -125,8 +126,8 @@ public final class MainActivity extends Activity {
         LinearLayout line=row();for(Button b:buttons)line.addView(b);scroller.addView(line);parent.addView(scroller);
     }
     private LinearLayout panel(String name,String title,String caption) {
-        LinearLayout body=column();body.setPadding(dp(12),dp(8),dp(12),dp(18));
-        TextView heading=label(title,16,INK);heading.setTypeface(null,Typeface.BOLD);
+        LinearLayout body=column();body.setPadding(dp(16),dp(14),dp(16),dp(22));
+        TextView heading=label(title,18,INK);heading.setTypeface(null,Typeface.BOLD);
         body.addView(heading);
         String hint=caption;
         if(name.equals("Network"))hint="Live request metadata · statuses and response bodies need interception";
@@ -179,8 +180,9 @@ public final class MainActivity extends Activity {
         toolsSheet=column();toolsSheet.setBackground(sheetBackground());toolsSheet.setElevation(dp(12));
         toolsSheet.setClipToOutline(true);
         LinearLayout grab=row();grab.setGravity(Gravity.CENTER);
-        TextView handle=label("━━",13,0xff71849c);handle.setGravity(Gravity.CENTER);
-        grab.addView(handle,new LinearLayout.LayoutParams(-1,dp(18)));toolsSheet.addView(grab);
+        View handle=new View(this);handle.setBackground(box(0xff58708d));
+        grab.addView(handle,new LinearLayout.LayoutParams(dp(42),dp(5)));
+        toolsSheet.addView(grab,new LinearLayout.LayoutParams(-1,dp(19)));
         toolHeader=row();toolHeader.setPadding(dp(12),0,dp(8),0);
         sheetLabel=label("DEVTOOLS",12,INK);sheetLabel.setTypeface(null,Typeface.BOLD);
         toolHeader.addView(sheetLabel,new LinearLayout.LayoutParams(0,-2,1));
@@ -233,7 +235,7 @@ public final class MainActivity extends Activity {
         if(stage==null||toolsSheet==null)return;
         int available=stage.getHeight();if(available<=0)return;
         boolean full=selected.equals("Terminal")||selected.equals("Workspace")||toolsExpanded;
-        int target=full?available:Math.max(dp(200),Math.round(available*0.69f));
+        int target=full?available:Math.max(dp(225),Math.round(available*0.63f));
         target=Math.min(available,target);
         ViewGroup.LayoutParams current=toolsSheet.getLayoutParams();
         if(current!=null&&current.height!=target){current.height=target;toolsSheet.setLayoutParams(current);}
@@ -291,7 +293,9 @@ public final class MainActivity extends Activity {
         if(activeTab!=null)activeTab.view.onPause();activeTab=tab;web=tab.view;captures=tab.captures;logs=tab.logs;
         webHost.removeAllViews();webHost.addView(web,new FrameLayout.LayoutParams(-1,-1));web.onResume();
         String url=web.getUrl();address.setText(url==null||url.startsWith("https://bb.invalid/")?"":url);
-        consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));renderNetwork();renderTabs();
+        consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));
+        if(consoleCopyButton!=null)consoleCopyButton.setEnabled(!tab.lastConsoleResult.isEmpty());
+        renderNetwork();renderTabs();
     }
     private void renderTabs(){
         if(tabCounter!=null)tabCounter.setText(String.valueOf(browserTabs.size()));
@@ -315,31 +319,29 @@ public final class MainActivity extends Activity {
     void openLab(){if(lab==null){toast("Local lab is starting. Try again.");return;}web.loadUrl(lab.url());select("Browser");}
     private void browserMenu(){
         new AlertDialog.Builder(this).setTitle("BB Cyber Studio").setItems(
-            new String[]{"New tab","Local lab","Forward","Desktop site","Open externally",
+            new String[]{"New tab","Forward","Desktop site","Open externally",
                 "Page analysis","Saved requests","Clear browser data"},(d,which)->{
             switch(which){
             case 0:newTab(null);break;
-            case 1:openLab();break;
-            case 2:if(web.canGoForward())web.goForward();break;
-            case 3:activeTab.desktop=!activeTab.desktop;
+            case 1:if(web.canGoForward())web.goForward();break;
+            case 2:activeTab.desktop=!activeTab.desktop;
                 String ua=WebSettings.getDefaultUserAgent(this);
                 if(activeTab.desktop)ua=ua.replaceAll("Linux; Android[^)]*","X11; Linux x86_64")
                     .replace("; wv","").replace(" Mobile","");
                 web.getSettings().setUserAgentString(ua);web.reload();break;
-            case 4:String url=web.getUrl();
+            case 3:String url=web.getUrl();
                 if(url!=null&&!url.startsWith("https://bb.invalid/")&&
                     (url.startsWith("https://")||url.startsWith("http://")))
                     try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}
                     catch(Exception e){toast("No browser available.");}
                 break;
-            case 5:openAnalyze();break;
-            case 6:openWorkspace();break;
-            case 7:confirm("Clear browser data?","Remove cookies, site storage, cache and captured request metadata?",
+            case 4:openAnalyze();break;
+            case 5:openWorkspace();break;
+            case 6:confirm("Clear browser data?","Remove cookies, site storage, cache and captured request metadata?",
                 this::clearBrowserData);break;
             }
         }).show();
     }
-
     void openAnalyze(){select("Analyze");}
     void openWorkspace(){select("Workspace");}
     private void clearBrowserData(){
@@ -364,7 +366,7 @@ public final class MainActivity extends Activity {
         tabLine.setVisibility(browser&&tabsExpanded?View.VISIBLE:View.GONE);
         urlBar.setVisibility(terminal||workspace?View.GONE:View.VISIBLE);
         navigationScroll.setVisibility(tool?View.VISIBLE:View.GONE);
-        sheetLabel.setText(terminal?"TERMINAL":workspace?"SAVED REQUESTS":name.toUpperCase(java.util.Locale.US));
+        sheetLabel.setText(terminal?"TERMINAL":workspace?"SAVED REQUESTS":"DEVELOPER TOOLS");
         toolsSheet.setVisibility(browser?View.GONE:View.VISIBLE);
         // Keep WebView alive below the sheet. The keyboard may resize the stage.
         updateSheetHeight();
@@ -377,14 +379,14 @@ public final class MainActivity extends Activity {
             ImageView destinationIcon=destinationIcons.get(key);
             if(destinationIcon!=null)destinationIcon.setColorFilter(active?ACCENT:MUTED);
             if(!key.equals("Browser")&&!key.equals("Tools")&&!key.equals("Terminal"))
-                entry.getValue().setBackgroundColor(active?0xff26374b:Color.TRANSPARENT);
+                entry.getValue().setBackground(box(active?0xff243e60:0xff111925));
         }
         if(name.equals("Network"))renderNetwork();
         status.setText(name+" · "+(activeTab==null?"":activeTab.title));
     }
     private void toolOptionsMenu(){
         String[] choices;
-        if(selected.equals("Console"))choices=new String[]{"Clear console","Reload website"};
+        if(selected.equals("Console"))choices=new String[]{"Copy all console logs","Clear console","Reload website"};
         else if(selected.equals("Repeater"))choices=new String[]{
             "Copy request as curl","Prepare curl in Terminal","Compare last two responses","Clear response"};
         else if(selected.equals("Network"))choices=new String[]{"Clear request list","Reload website"};
@@ -393,7 +395,11 @@ public final class MainActivity extends Activity {
         else choices=new String[]{"Page analysis","Open Network"};
         new AlertDialog.Builder(this).setTitle(selected+" options").setItems(choices,(dialog,which)->{
             if(selected.equals("Console")){
-                if(which==0){logs.clear();consoleOutput.setText("");}else web.reload();
+                if(which==0){
+                    String value=android.text.TextUtils.join("\n\n",logs);
+                    if(value.trim().isEmpty())toast("No logs to copy.");else copy(value);
+                }else if(which==1){logs.clear();if(activeTab!=null)activeTab.lastConsoleResult="";consoleOutput.setText("");}
+                else web.reload();
             }else if(selected.equals("Repeater")){
                 if(which==0||which==1)try{
                     String curl=spec().toCurl();
@@ -422,7 +428,7 @@ public final class MainActivity extends Activity {
     }
 
     private void navigate() {
-        String url=address.getText().toString().trim();if(url.isEmpty())return;if(!url.contains(":")&&(url.contains(" ")||!url.contains(".")))url="https://duckduckgo.com/?q="+Uri.encode(url);else if(!url.contains(":"))url="https://"+url;
+        String url=address.getText().toString().trim();if(url.isEmpty())return;if(!url.contains(":")&&(url.contains(" ")||!url.contains(".")))url="https://www.google.com/search?q="+Uri.encode(url);else if(!url.contains(":"))url="https://"+url;
         try { // Fragments are valid for browsing, unlike native request replay.
             Uri parsed=Uri.parse(url);String scheme=parsed.getScheme();
             if((!"https".equalsIgnoreCase(scheme)&&!"http".equalsIgnoreCase(scheme))||parsed.getHost()==null)throw new IllegalArgumentException("Enter an HTTP(S) address.");
@@ -638,57 +644,113 @@ public final class MainActivity extends Activity {
         if(changed==0)diff.append("Responses are identical.");showText("Response comparison",diff.toString());
     }
     private void buildConsole(){
-        LinearLayout body=panel("Console","JavaScript Console",
-            "Executes in the selected page. Output is copied only on demand.");
-        jsInput=edit("JavaScript expression or statement",2);
+        LinearLayout body=panel("Console","Console",
+            "Evaluate JavaScript and copy the result.");
+        TextView guidance=label("JavaScript runs in the active website. Run code only on pages you trust.",11,MUTED);
+        body.addView(guidance);
+        jsInput=edit("Enter JavaScript",2);
         jsInput.setTypeface(Typeface.MONOSPACE);jsInput.setText("document.title");
         jsInput.setContentDescription("JavaScript input");body.addView(jsInput);
-        Button execute=button("Run",this::evaluate);
-        execute.setTextColor(0xff0c1727);execute.setBackground(box(ACCENT));
-        Button copyOutput=button("Copy output",()->{
-            if(consoleOutput==null)return;
-            String value=android.text.TextUtils.join("\n\n",logs);
-            if(value.trim().isEmpty()){toast("Nothing to copy yet.");return;}
-            copy(value);
-        });
-        actions(body,execute,copyOutput);
-        consoleOutput=output("Console output appears here. Long press to select individual text.");
+        Button run=button("Run",this::evaluate);
+        run.setTextColor(0xff0b1d32);run.setBackground(box(ACCENT));
+        consoleCopyButton=button("Copy",this::copyConsoleResult);
+        consoleCopyButton.setEnabled(false);
+        actions(body,run,consoleCopyButton);
+        consoleOutput=output("Run a JavaScript expression to see its result.");
         consoleOutput.setTextIsSelectable(true);
-        consoleOutput.setContentDescription("Console output");body.addView(consoleOutput);
+        consoleOutput.setContentDescription("Console output");
+        body.addView(consoleOutput);
+        body.addView(label("Tip: long-press a line to select text. Copy copies the latest result; ⋮ lets you copy all logs.",11,MUTED));
     }
+
+    private void copyConsoleResult(){
+        String value=activeTab==null?"":activeTab.lastConsoleResult;
+        if(value==null||value.trim().isEmpty()){
+            toast("Run JavaScript first, then tap Copy.");return;
+        }
+        copy(value);
+    }
+
     private void evaluate(){
-        String source=jsInput.getText().toString();if(source.trim().isEmpty())return;final BrowserTab evaluatedTab=activeTab;addLog("> "+source);
+        String source=jsInput.getText().toString();
+        if(source.trim().isEmpty())return;
+        final BrowserTab evaluatedTab=activeTab;
+        if(consoleCopyButton!=null)consoleCopyButton.setEnabled(false);
+        if(evaluatedTab!=null)evaluatedTab.lastConsoleResult="";
+        addLog("> "+source);
         String script="(function(){try{var v=(0,eval)("+JSONObject.quote(source)+");if(v&&typeof v.then==='function')return 'Promise returned; use console.log in .then() to inspect its value';return typeof v==='string'?v:(typeof v==='undefined'?'undefined':JSON.stringify(v,null,2));}catch(e){return e.name+': '+e.message;}})()";
-        web.evaluateJavascript(script,value->{try{addTabLog(evaluatedTab,String.valueOf(new JSONTokener(value).nextValue()));}catch(Exception e){addTabLog(evaluatedTab,value);}});
+        web.evaluateJavascript(script,value->{
+            String decoded;
+            try{Object object=new JSONTokener(value).nextValue();decoded=String.valueOf(object);}
+            catch(Exception e){decoded=value;}
+            if(evaluatedTab!=null)evaluatedTab.lastConsoleResult=decoded;
+            addTabLog(evaluatedTab,decoded);
+            if(evaluatedTab==activeTab&&consoleCopyButton!=null)
+                consoleCopyButton.setEnabled(decoded!=null&&!decoded.isEmpty());
+        });
     }
     private void addTabLog(BrowserTab tab,String message){if(message.length()>8000)message=message.substring(0,8000);if(tab.logs.size()>=200)tab.logs.remove(0);tab.logs.add(message);if(tab==activeTab&&consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",tab.logs));}
     private void addLog(String message){if(message.length()>8000)message=message.substring(0,8000)+"\n[Truncated]";if(logs.size()>=200)logs.remove(0);logs.add(message);if(consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));}
     private void buildElements(){
-        LinearLayout body=panel("Elements","DOM inspector","Read an element snapshot or change an inline style. Top-level document only; changes disappear on reload.");
-        EditText selector=edit("CSS selector",1);selector.setText("h1");body.addView(selector);
-        EditText property=edit("CSS property",1);property.setText("color");body.addView(property);EditText value=edit("CSS value",1);value.setText("#52e0c4");body.addView(value);
-        actions(body,button("Inspect",()->{
+        LinearLayout body=panel("Elements","Elements · DOM","Inspect the HTML structure of the active page.");
+        body.addView(label("Find a page element using a CSS selector. Examples: h1, button, #menu or .product.",12,MUTED));
+        EditText selector=edit("CSS selector, e.g. h1",1);
+        selector.setText("h1");body.addView(selector);
+        Button inspect=button("Inspect HTML",()->{
             String script="(function(){try{var e=document.querySelector("+JSONObject.quote(selector.getText().toString())+");if(!e)return 'No matching element';return e.outerHTML.slice(0,50000);}catch(e){return e.message;}})()";
-            web.evaluateJavascript(script,r->{try{elementsOutput.setText(String.valueOf(new JSONTokener(r).nextValue()));}catch(Exception e){elementsOutput.setText(r);}});
-        }),button("Apply style",()->{
-            String script="(function(){try{var e=document.querySelector("+JSONObject.quote(selector.getText().toString())+");if(!e)return 'No matching element';e.style.setProperty("+JSONObject.quote(property.getText().toString())+","+JSONObject.quote(value.getText().toString())+");return e.getAttribute('style');}catch(e){return e.message;}})()";
-            web.evaluateJavascript(script,r->elementsOutput.setText(r));
-        }));elementsOutput=output("Enter a CSS selector, then Inspect.");body.addView(elementsOutput);
+            web.evaluateJavascript(script,r->{
+                try{elementsOutput.setText(String.valueOf(new JSONTokener(r).nextValue()));}
+                catch(Exception e){elementsOutput.setText(r);}
+            });
+        });
+        inspect.setTextColor(0xff0b1d32);inspect.setBackground(box(ACCENT));
+        actions(body,inspect,button("Copy HTML",()->{
+            String value=elementsOutput.getText().toString();
+            if(value.equals("Inspect an element to see its HTML.")||value.trim().isEmpty()){
+                toast("Inspect an element first.");return;
+            }
+            copy(value);
+        }));
+        elementsOutput=output("Inspect an element to see its HTML.");
+        elementsOutput.setTextIsSelectable(true);elementsOutput.setContentDescription("Inspected HTML output");
+        body.addView(elementsOutput);
+        body.addView(label("CSS editing is temporary and changes only the WebView on your phone.",11,MUTED));
+        LinearLayout cssEditor=column();
+        EditText property=edit("CSS property, e.g. color",1);property.setText("color");
+        EditText value=edit("CSS value, e.g. #75acfa",1);value.setText("#75acfa");
+        cssEditor.addView(property);cssEditor.addView(value);
+        cssEditor.addView(button("Apply CSS",()->{
+            String key=property.getText().toString().trim();
+            if(!key.matches("[-a-zA-Z0-9]+")){toast("Enter a valid CSS property name.");return;}
+            String script="(function(){try{var e=document.querySelector("+JSONObject.quote(selector.getText().toString())+");if(!e)return 'No matching element';e.style.setProperty("+JSONObject.quote(key)+","+JSONObject.quote(value.getText().toString())+");return e.outerHTML.slice(0,50000);}catch(e){return e.message;}})()";
+            web.evaluateJavascript(script,r->{
+                try{elementsOutput.setText(String.valueOf(new JSONTokener(r).nextValue()));}
+                catch(Exception e){elementsOutput.setText(r);}
+            });
+        }));
+        cssEditor.setVisibility(View.GONE);
+        body.addView(button("Edit CSS ▾",()->{
+            cssEditor.setVisibility(cssEditor.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);
+        }));
+        body.addView(cssEditor);
     }
     private void buildTerminal(){
-        LinearLayout body=column();body.setPadding(dp(12),dp(3),dp(12),dp(6));
-        body.setBackgroundColor(0xff0b111b);panels.put("Terminal",body);
+        LinearLayout body=column();body.setPadding(dp(12),dp(6),dp(12),dp(6));
+        body.setBackgroundColor(0xff0c1420);panels.put("Terminal",body);
         LinearLayout top=row();
-        TextView title=label("Local Android shell",14,INK);title.setTypeface(null,Typeface.BOLD);
+        TextView title=label("Terminal",17,INK);title.setTypeface(null,Typeface.BOLD);
         top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        top.addView(button("Termux",()->new AlertDialog.Builder(this).setTitle("Termux")
-            .setItems(new String[]{"Open Termux","Run input in Termux","Connection setup"},(d,n)->{
-                if(n==0)openTermux();else if(n==1)runTermux();else termuxSetup();
-            }).show()));
-        body.addView(top);
-        TextView hint=label("SANDBOX SHELL  ·  NO ROOT / PYTHON PACKAGES",10,MUTED);body.addView(hint);
-        terminalOutput=output("BB Cyber Studio local shell\n\nCommands run inside the Android app sandbox. For a full Linux toolchain, connect Termux from the menu.\n\n");
-        terminalOutput.setTextSize(12);terminalOutput.setBackgroundColor(0xff0b111b);
+        terminalModeButton=button("Android ▾",()->{
+            useTermuxShell=!useTermuxShell;
+            terminalModeButton.setText(useTermuxShell?"Termux ▾":"Android ▾");
+            appendTerminal(useTermuxShell
+                ?"\n[Termux mode] Runs through the separate Termux app with permission. Results arrive on completion. Use ⋮ > Termux setup if needed.\n"
+                :"\n[Android mode] Local app sandbox shell: no pkg, apt, pip or Linux packages.\n");
+        });
+        top.addView(terminalModeButton);body.addView(top);
+        body.addView(label("ANDROID SHELL / TERMUX CONNECTION · SELECT MODE ABOVE",11,MUTED));
+        terminalOutput=output("BB Cyber Studio\n\nAndroid mode runs system shell commands inside the app sandbox, not Linux packages. Switch to Termux for pkg, Python and other Termux-installed tools.\n\n");
+        terminalOutput.setTextSize(12);terminalOutput.setBackgroundColor(0xff0c1420);
         terminalOutput.setContentDescription("Terminal output");
         terminalScroll=new ScrollView(this);terminalScroll.setFillViewport(true);
         terminalScroll.addView(terminalOutput);body.addView(terminalScroll,new LinearLayout.LayoutParams(-1,0,1));
@@ -697,7 +759,7 @@ public final class MainActivity extends Activity {
         extras.addView(button("↓",()->terminalHistory(1)));
         extras.addView(button("Copy",()->copy(terminalOutput.getText().toString())));
         extras.addView(button("Stop",()->{
-            if(localShell!=null){localShell.close();localShell=null;appendTerminal("\n[Session stopped]\n");}
+            if(localShell!=null){localShell.close();localShell=null;appendTerminal("\n[Local session stopped]\n");}
         }));
         body.addView(extras);
         LinearLayout input=row();input.addView(label("$",18,ACCENT));
@@ -711,8 +773,29 @@ public final class MainActivity extends Activity {
     }
     private void appendTerminal(String text){if(destroyed)return;String all=terminalOutput.getText()+text;if(all.length()>100000)all=all.substring(all.length()-100000);terminalOutput.setText(all);terminalScroll.post(()->terminalScroll.fullScroll(View.FOCUS_DOWN));}
     private void startLocalShell(){if(localShell!=null)localShell.close();try{localShell=new LocalShell(getFilesDir(),text->runOnUiThread(()->appendTerminal(text)));appendTerminal("\n[New local session]\n");}catch(Exception e){appendTerminal("\n"+e.getMessage()+"\n");}}
-    private void sendLocalCommand(){String command=commandInput.getText().toString();if(command.trim().isEmpty())return;if(command.length()>4096){toast("Local command limit: 4096 characters.");return;}if(localShell==null)startLocalShell();if(localShell==null)return;
-        try{localShell.send(command);commandHistory.add(command);if(commandHistory.size()>100)commandHistory.remove(0);historyIndex=commandHistory.size();appendTerminal("$ "+command+"\n");commandInput.setText("");}catch(Exception e){appendTerminal(e.getMessage()+"\n");}
+    private void sendLocalCommand(){
+        String command=commandInput.getText().toString().trim();
+        if(command.isEmpty())return;
+        if(command.length()>4096){toast("Command limit: 4096 characters.");return;}
+        if(useTermuxShell){runTermux();return;}
+        if(command.matches("(?s)^(pkg|apt|apt-get)(\\s+.*)?$")){
+            new AlertDialog.Builder(this)
+                .setTitle("This is the Android shell")
+                .setMessage("pkg and apt work in Termux, not Android's /system/bin/sh. Switch to Termux mode to run the command in your installed Termux environment.")
+                .setNegativeButton("Keep Android",null)
+                .setPositiveButton("Switch to Termux",(d,w)->{
+                    useTermuxShell=true;terminalModeButton.setText("Termux ▾");
+                    appendTerminal("\n[Termux mode selected. Review the command then tap Run.]\n");
+                }).show();
+            return;
+        }
+        if(localShell==null)startLocalShell();if(localShell==null)return;
+        try{
+            localShell.send(command);commandHistory.add(command);
+            if(commandHistory.size()>100)commandHistory.remove(0);
+            historyIndex=commandHistory.size();
+            appendTerminal("$ "+command+"\n");commandInput.setText("");
+        }catch(Exception e){appendTerminal(e.getMessage()+"\n");}
     }
     private void terminalHistory(int change){historyIndex=Math.max(0,Math.min(commandHistory.size(),historyIndex+change));commandInput.setText(historyIndex==commandHistory.size()?"":commandHistory.get(historyIndex));commandInput.setSelection(commandInput.length());}
     private void insertCommand(String text){int at=Math.max(0,commandInput.getSelectionStart());commandInput.getText().insert(at,text);commandInput.requestFocus();}
@@ -748,15 +831,15 @@ public final class MainActivity extends Activity {
                 if(Build.VERSION.SDK_INT>=31)flags|=PendingIntent.FLAG_MUTABLE;
                 PendingIntent pending=PendingIntent.getBroadcast(this,pendingId,callback,flags);
                 Intent intent=new Intent("com.termux.RUN_COMMAND");intent.setClassName("com.termux","com.termux.app.RunCommandService");
-                intent.putExtra("com.termux.RUN_COMMAND_PATH","$PREFIX/bin/bash");
+                intent.putExtra("com.termux.RUN_COMMAND_PATH","/data/data/com.termux/files/usr/bin/bash");
                 intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS",new String[]{"-lc",command});
-                intent.putExtra("com.termux.RUN_COMMAND_WORKDIR","~/");
+                intent.putExtra("com.termux.RUN_COMMAND_WORKDIR","/data/data/com.termux/files/home");
                 intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND",true);intent.putExtra("com.termux.RUN_COMMAND_PENDING_INTENT",pending);
                 intent.putExtra("com.termux.RUN_COMMAND_COMMAND_LABEL","BB Cyber Studio");
                 android.content.ComponentName started=startService(intent);
                 if(started==null)throw new IllegalStateException("Termux service not available");
-                terminalOutput.setText("Running… output arrives after completion.\nIf no result arrives, check Setup and Termux permissions.");
-            }catch(Exception e){terminalOutput.setText("Could not start Termux: "+e.getMessage()+"\nOpen Setup for connection instructions.");}
+                appendTerminal("\n[Termux] Executing: "+command+"\nOutput arrives after completion.\n");
+            }catch(Exception e){appendTerminal("\nCould not start Termux: "+e.getMessage()+"\nOpen Setup for connection instructions.\n");}
         });
     }
     private void buildWorkspace(){

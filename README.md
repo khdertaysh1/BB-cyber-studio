@@ -1,111 +1,45 @@
-## 0.3 mobile-first workspace
-BB Cyber Studio now opens as a browser with a compact address bar, up to eight website tabs, and a three-destination bottom bar: **Browser, Tools, Terminal**. Developer tools open in a resizable bottom sheet above the live page. Tap the expand icon for a full-height panel.
+# BB Cyber Studio — Android 0.4 Alpha
 
-Console now has just **Run** and **Copy output**. Repeater has **Send**, **Copy response**, and collapsible Headers/Body fields. Clear, compare, cURL export and extra tools live under the ⋮ tools menu. Saved requests and Page analysis move to the browser menu, instead of taking permanent bottom-navigation slots.
+A mobile-first browser and developer workspace for web inspection on Android 8+ (no root). The app uses Android System WebView, not a full Chromium fork.
 
-Network remains a **best-effort request metadata inspector**, not a full HTTP(S) interception proxy; status codes and response bodies for browser traffic remain unavailable. Resource type labels are estimates. The local shell is not a Linux PTY; Termux integration is optional.
+## What changed in v0.4
 
-# BB Cyber Studio
+- **Google** is the default search engine, in the address bar and new-tab page.
+- The new-tab page no longer shows Local Lab or Example Website shortcuts. The isolated loopback fixture remains internally for automated tests.
+- **Console** is focused on Run and Copy: execute JavaScript in the active page, copy the latest evaluated result with one tap, or copy all logs from Tools ⋮.
+- **Elements** explains the DOM inspector, lets you Inspect HTML and Copy HTML, and hides temporary CSS edits under an expandable control.
+- **Terminal** explicitly offers Android or Termux mode. Android's local shell cannot run `pkg` or `apt`. Termux mode uses the *separate installed Termux application* with explicit user permission; it is not an embedded full Linux terminal.
+- More consistent spacing, colors and tab styles. Tools remain a bottom panel above the live browser.
 
-**An Android workspace for web development and security research.**
+## Install
 
-Browser • JavaScript console • DOM inspector • HTTP Repeater • Termux commands
+Download the APK from a green [Android APK GitHub Actions run](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml) → **Artifacts** → `BB-cyber-studio-0.4.0-alpha-debug` → extract the ZIP → install `app-debug.apk`. Development builds may use different debug signing identities; uninstalling an old version can delete local browsing and saved request data.
 
-[![Android APK](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml/badge.svg)](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml)
+## Practical usage
 
-**0.3.0 alpha** — a working foundation, not a complete Burp Suite replacement. No root, account, analytics or hosted backend. Android 8.0+; an updated Android System WebView is recommended.
+**Browser:** search with Google, enter website URLs, reload, manage up to eight tabs. The web page stays behind the expandable Tools panel.
 
-## Install from GitHub on your phone
+**Console:** Tools → Console → write JavaScript → Run → Copy. To copy all collected logs, use the Tools ⋮ menu. The output TextView supports text selection.
 
-The easiest option is [Releases](https://github.com/khdertaysh1/BB-cyber-studio/releases): download **BB-cyber-studio.apk** from a published alpha. Releases are created from `main` only after build and emulator checks pass. If no release is available yet, use a successful Actions artifact:
+**Elements:** Tools → Elements → type a CSS selector like `h1`, `.item` or `#login` → Inspect HTML → Copy HTML. Use **Edit CSS** only when needed; changes are temporary and local.
 
-1. Open [Actions → Android APK](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml).
-2. Choose a **successful** run for the branch you want. Scroll to **Artifacts**.
-3. Download `BB-cyber-studio-0.3.0-alpha-debug`, extract the ZIP, and install `app-debug.apk`.
-4. GitHub requires sign-in to download Actions artifacts. You may need to allow APK installation for your browser/files app.
+**Network:** an observed WebView request list with URL/method filtering, best-effort resource categories, request headers and transfer to independent Repeater. This is NOT full HTTPS interception; original browser response status/body and POST payloads are unavailable. Avoid claiming a request is reproduced with the same session.
 
-These are development APKs signed with a CI debug key. Different runs may require uninstalling the previous build, which deletes its local data. Stable signed releases are a later milestone; never commit signing keys.
+**Repeater:** native HTTP client with verified TLS, edited URL/method/headers/body and a response viewer. There is no automatic browser-cookie synchronization. No redirects follow automatically; outputs are bounded.
 
-## Try it without an external service
-
-1. Launch the app. Tap **Local lab** on the start page (or in the ⋮ menu). It runs on your phone's loopback interface.
-2. Tap **Send GET** on the lab page, then select **Tools → Network**.
-3. Tap the echo request → **To Repeater** → **Send**. Inspect the actual HTTP response.
-4. Change its query string, send again, then open **Tools ⋮ → Compare last two responses**.
-5. In **Console**, evaluate `document.title` or `document.body.style.background = '#183247'`.
-6. In **Elements**, inspect `h1` and change its `color`.
-7. In **Repeater**, open **Tools ⋮ → Prepare curl in Terminal** to transfer a quoted command without executing it. Connect Termux to run it.
-
-The local lab is reachable only at `127.0.0.1` using an unguessable per-launch URL. It is an echo fixture, not an isolated sandbox for hostile code. Its address changes after restart; saved requests targeting an old lab address need updating.
-
-## Implemented vs planned
-
-| Feature | 0.3 alpha |
-|---|---|
-| Embedded browser | Up to 8 website tabs, compact address bar, local lab; DevTools bottom sheet over the live page |
-| Network | Up to 200 observed request URLs, methods and available headers; filtering and transfer to Repeater |
-| Repeater | GET, POST, PUT, DELETE, HEAD, OPTIONS; editable headers/body; verified TLS; bounded response viewer |
-| Redirects / cookies | Redirects displayed without following; browser cookies are not automatically shared with Repeater |
-| Console | Run/evaluate in the active page, selectable output and one-tap Copy output; clearing in ⋮ menu |
-| Elements | CSS selector → DOM snapshot; inline CSS editing |
-| Analyze | Live DOM map of links/scripts/forms, HTTP asset references on HTTPS, separate response-header review with cookie values omitted |
-| Browser compatibility | Upload file picker, mobile/desktop user-agent switch, zoom, reload/forward and external-browser handoff |
-| Terminal | Persistent local Android shell with streamed output and history; separate Termux command handoff |
-| Saved requests | One encrypted request (Android Keystore), accessible via Browser ⋮ → Saved requests; clearing controls in ⋮ menus |
-| HTTP(S) interception | **Not implemented** — Network is metadata observation, not a MITM proxy |
-| Captured bodies/status | **Not implemented** for browser traffic; Repeater shows responses to its own requests |
-| Full DevTools | Not included: JS breakpoints, source debugger, iframe/worker inspection, element picking |
-| Interactive embedded PTY | Planned; the local shell uses pipes rather than a PTY |
-| WebSocket, HAR, isolated profiles | Planned |
-
-WebView callbacks do not see every redirect, service-worker request, cached resource or WebSocket frame. Imported request metadata may omit cookies and bodies. Review every request before sending. Native HTTP framing headers are managed by the client; raw protocol fuzzing and duplicate headers are not supported.
-
-**Website compatibility:** this is based on Android System WebView, not a Chromium fork. Some identity providers reject embedded browsers; DRM, client-certificate flows, browser extensions, pop-up-dependent login flows and cross-frame debugging are not covered. Use the external-browser button when a site rejects WebView. No claim of compatibility with every website is made.
-
-**Analyze** maps only the current top-level DOM and limits inventories to 100 entries per list. It never reads form values or cookie values. The header review makes a fresh GET without the browser session; it can therefore receive a different response from your logged-in page. It does not crawl, exploit, bypass protection or claim missing headers prove a vulnerability.
+**Terminal:** Android mode launches a persistent pipe-based shell inside the app sandbox, with no Termux packages. Termux mode sends explicit commands to the separate Termux `RUN_COMMAND` service and shows output after completion (not a live interactive PTY). Open interactive Termux for programs requiring a terminal UI.
 
 ## Connect Termux
 
-Use an official [Termux](https://github.com/termux/termux-app) build with `RUN_COMMAND` result support (0.109+). Open Termux once, then:
+Install an official [Termux](https://github.com/termux/termux-app) distribution. In Termux set `allow-external-apps=true` in `~/.termux/termux.properties`, then run `termux-reload-settings`. Grant **Run commands in Termux environment** to BB Cyber Studio under Android app permissions. Select **Terminal → Android ▾ → Termux ▾**. You may need to grant the permission and press Run again.
 
-```sh
-mkdir -p ~/.termux
-# Edit the file and set this property once:
-nano ~/.termux/termux.properties
-# allow-external-apps=true
-termux-reload-settings
-```
+Commands originate only from the native input and require confirmation before Termux executes them. The app does not expose shell APIs to webpages.
 
-Grant **BB Cyber Studio → Permissions → Additional permissions → Run commands in Termux environment**. The app can request this permission with **Terminal → Termux → Run input in Termux**. Run `pwd` first. Termux remains a separate dependency in this release.
+## Security and limitations
 
-Commands run under Termux's user and permissions, after confirmation in the native UI. Results appear on completion; use **Termux → Open interactive Termux** for interactive programs. OEM battery restrictions can interrupt execution. Upstream integration reference: [RUN_COMMAND](https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent).
+- No root, account, analytics, remote backend, page-accessible JavaScript bridge or trust-all TLS overrides.
+- Per-tab request metadata and logs are in memory, WebView cookies/storage are shared.
+- One optional saved request can be encrypted using Android Keystore; access through the browser menu.
+- Some identity providers and websites reject WebView. Browser extensions, JS breakpoints, interactive embedded PTY, real HTTPS interception, WebSocket frames and HAR export are not implemented.
 
-## Build
-
-JDK 17, Android SDK platform 35, and Gradle **8.10.2**:
-
-```sh
-gradle testDebugUnitTest lintDebug assembleDebug
-```
-
-The CI workflow installs the pinned Gradle version. A Gradle wrapper is not yet bundled; do not run an arbitrary system Gradle version. The app uses Android platform Java APIs without third-party runtime dependencies. CI compiles the APK and runs JVM tests; see [testing](docs/TESTING.md) for device verification.
-
-## Design and security
-
-- The browser has **no JavaScript-to-native bridge** and cannot invoke Termux.
-- TLS errors cancel navigation; native requests use platform certificate verification. No trust-all manager or SSL bypass.
-- Cleartext HTTP is enabled intentionally for local development and HTTP test endpoints.
-- Browser data remains in WebView's app-private storage. Saved request files use AES-GCM with an Android Keystore key. Backups are disabled.
-- Network, console, responses and terminal output remain in memory. Clipboard export is explicit and can contain credentials.
-- The Termux result receiver is non-exported; callbacks use an explicit, one-shot mutable PendingIntent so Termux can return result extras.
-- Only user-selected HTTP requests and commands run. No automatic scanning or external telemetry.
-
-See [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), and [roadmap](docs/ROADMAP.md).
-
-## بالعربي
-
-**BB Cyber Studio** مساحة عمل للمبرمج والباحث الأمني على أندرويد: متصفح، كونسول JavaScript، فحص عناصر، محرر طلبات HTTP وربط Termux.
-
-لتجربة النسخة: من **Actions** افتح بناء ناجح، ونزّل ملف APK من **Artifacts** وفك الضغط وثبّته. جرّب **Local lab** ثم **Tools → Network → To Repeater → Send**.
-
-النسخة الأولى تعرض معلومات طلبات المتصفح، وليست اعتراض HTTPS كاملاً. الطرفية المحلية تشغّل أوامر أندرويد وتعرض النتائج مباشرة وتحفظ مسار العمل. بيئة Linux وPython متاحة عبر ربط Termux المنفصل؛ محاكي PTY كامل غير مدمج. واجهة التطبيق حالياً بالإنكليزي، والترجمة العربية الكاملة لاحقاً.
+See [Design](docs/DESIGN.md), [Testing](docs/TESTING.md), and [Roadmap](docs/ROADMAP.md).

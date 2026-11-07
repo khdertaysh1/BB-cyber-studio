@@ -1,21 +1,9 @@
-# BB Cyber Studio 0.3 — Android alpha (preview)
+# BB Cyber Studio v0.4.0 Alpha — Google, Elements and Console UX
 
-## Browser-first usability
-- Website takes the full browser area until Tools is opened.
-- Live DevTools appear as a compact, expandable bottom sheet instead of replacing the whole page.
-- Bottom navigation reduced to Browser, Tools and Terminal.
-- Saved Request and Page Analysis moved to the browser menu.
+Browser-first Android application for no-root research. New tab and address bar search with Google, and the public Local Lab/Example shortcuts are gone.
 
-## Tools
-- Console: Run + Copy output; Android text selection also available.
-- Network: compact observed-request table, resource grouping, quick filters and batched rendering on busy websites.
-- Repeater: method/URL, collapsible Headers and Body, Send and Copy response. Extras live under ⋮.
-- The metadata-import notice is a quiet in-panel explanation rather than an alarming toast.
-- Local Android shell retains streaming output, working-directory state and optional Termux integration.
+Console offers only Run and Copy for core actions; Copy grabs the last evaluated JavaScript result, and Tools ⋮ can copy all logs. Elements now focuses on inspecting HTML with explicit Copy HTML and expandable temporary CSS editing. Terminal mode is explicitly Android or external Termux; package commands such as pkg update require Termux and are not run in the Android app shell.
 
-## Limits
-This is **not** Burp Suite or complete Chrome DevTools. WebView does not expose the full browser HTTP response, original POST body, Cookie header, WebSocket frames, detailed initiator or timings through its request callback. Repeater makes its own HTTP requests; it does not reuse the browser's authenticated cookie jar. Do not treat missing response data as evidence of a vulnerability.
+The UI retains its expandable DevTools sheet and independent HTTP Repeater. Original browser request/response body, TLS interception, HAR, embedded Linux PTY and complete Chrome DevTools features are NOT available.
 
-No root, hosted service, paid backend, telemetry or unsafe TLS override. The built-in shell uses Android sandbox commands, not a full Linux PTY. Termux must be separately installed and authorized.
-
-The CI APK uses a debug signing identity. An install over a different CI build may fail due to signing mismatch; uninstalling deletes the app's local data. Only releases from the main branch are published, after CI passes.
+The build pipeline runs JVM unit tests, Android lint, APK compile and Android 15 emulator smoke tests. A green CI build does not guarantee real-device Termux integration; validate on the intended phone. This is debug-signed and may not install over an older build with a different certificate.

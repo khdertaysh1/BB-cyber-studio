@@ -38,6 +38,19 @@ public class StudioSmokeTest {
         while(System.currentTimeMillis()<deadline){scenario.onActivity(a->found[0]=contains(a.getWindow().getDecorView(),text));if(found[0])return;Thread.sleep(100);}
         fail("Timed out waiting for "+text);
     }
+    private void waitForConsoleResult(ActivityScenario<MainActivity> scenario,String text) throws Exception {
+        long deadline=System.currentTimeMillis()+10000;boolean[] ready={false};
+        while(System.currentTimeMillis()<deadline){
+            scenario.onActivity(a->{
+                View output=findDescription(a.getWindow().getDecorView(),"Console output");
+                ready[0]=output instanceof TextView &&
+                    ((TextView)output).getText().toString().contains(text);
+            });
+            if(ready[0])return;
+            Thread.sleep(100);
+        }
+        fail("Timed out waiting for Console output: "+text);
+    }
     private void shellCommand(String command) throws Exception {
         android.os.ParcelFileDescriptor pipe=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(command);
         try(java.io.InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(pipe)){byte[] data=new byte[512];while(in.read(data)!=-1){}}
@@ -51,8 +64,8 @@ public class StudioSmokeTest {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitFor(scenario,"observed requests");screenshot("00-start");
             scenario.onActivity(a->a.openLab());Thread.sleep(700);waitFor(scenario,"observed requests");screenshot("01-browser");
-            tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"BB · Local lab");
-            tap(scenario,"Copy output");
+            tap(scenario,"Console");tap(scenario,"Run");waitForConsoleResult(scenario,"BB · Local lab");
+            tap(scenario,"Copy");
             scenario.onActivity(activity->{
                 android.content.ClipboardManager clipboard=(android.content.ClipboardManager)
                     activity.getSystemService(Context.CLIPBOARD_SERVICE);
@@ -63,15 +76,20 @@ public class StudioSmokeTest {
             screenshot("02-console");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
             Thread.sleep(1200);InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-            tap(scenario,"Run");waitFor(scenario,"BB · Local lab");screenshot("02-console-landscape");
+            tap(scenario,"Run");waitForConsoleResult(scenario,"BB · Local lab");screenshot("02-console-landscape");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT));
             Thread.sleep(1200);InstrumentationRegistry.getInstrumentation().waitForIdleSync();
             tap(scenario,"Repeater");tap(scenario,"Send");waitFor(scenario,"HTTP 200");screenshot("03-repeater");
             tap(scenario,"Network");screenshot("04-network");
-            tap(scenario,"Elements");tap(scenario,"Inspect");waitFor(scenario,"<h1>");
+            tap(scenario,"Elements");tap(scenario,"Inspect HTML");waitFor(scenario,"<h1>");
+            tap(scenario,"Copy HTML");
+            scenario.onActivity(activity->{
+                android.content.ClipData copied=((android.content.ClipboardManager)activity.getSystemService(Context.CLIPBOARD_SERVICE)).getPrimaryClip();
+                assertNotNull(copied);assertTrue(copied.getItemAt(0).coerceToText(activity).toString().contains("<h1"));
+            });
             scenario.onActivity(a->a.openAnalyze());tap(scenario,"Page map");waitFor(scenario,"secureContext");screenshot("05-analysis");
             tap(scenario,"Review headers");waitFor(scenario,"HEADER REVIEW");
-            tap(scenario,"Terminal");waitFor(scenario,"SANDBOX SHELL");
+            tap(scenario,"Terminal");waitFor(scenario,"ANDROID SHELL / TERMUX CONNECTION");
             scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("printf 'BB_%s_OK\\n' SHELL");});
             tap(scenario,"Run");waitFor(scenario,"BB_SHELL_OK");screenshot("06-terminal");
             scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("cd /; pwd");});
@@ -80,10 +98,10 @@ public class StudioSmokeTest {
             tap(scenario,"Run");waitFor(scenario,"CWD=/");
             tap(scenario,"Browser");
             scenario.onActivity(a->{View toggle=findDescription(a.getWindow().getDecorView(),"Show tabs");assertNotNull(toggle);toggle.performClick();View plus=findDescription(a.getWindow().getDecorView(),"New tab");assertNotNull(plus);assertTrue(plus.isShown());plus.performClick();});
-            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"New tab");Thread.sleep(300);
+            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Run");waitForConsoleResult(scenario,"New tab");Thread.sleep(300);
             scenario.onActivity(a->{TextView out=(TextView)findDescription(a.getWindow().getDecorView(),"Console output");assertTrue(out.getText().toString().contains("New tab"));assertFalse(out.getText().toString().contains("BB · Local lab"));});screenshot("07-tabs");
             scenario.onActivity(a->{View old=findDescription(a.getWindow().getDecorView(),"Switch tab BB · Local lab");assertNotNull(old);old.performClick();});
-            tap(scenario,"Run");waitFor(scenario,"BB · Local lab");
+            tap(scenario,"Run");waitForConsoleResult(scenario,"BB · Local lab");
             scenario.onActivity(a->a.openWorkspace());tap(scenario,"Save");tap(scenario,"Load into Repeater");waitFor(scenario,"HTTP Repeater");
         }
     }
@@ -95,14 +113,14 @@ public class StudioSmokeTest {
                 assertNotNull(tools);tools.performClick();
                 View console=find(tree,"Console",true);
                 assertNotNull(console);console.performClick();
-                View run=find(tree,"Run",true);View copy=find(tree,"Copy output",true);
+                View run=find(tree,"Run",true);View copy=find(tree,"Copy",true);
                 assertNotNull(run);assertNotNull(copy);
                 assertTrue(run.isShown());assertTrue(copy.isShown());
                 assertNull("Verbose console controls should be in overflow",find(tree,"Clear logs",true));
                 assertNull("Verbose console controls should be in overflow",find(tree,"Reload page",true));
                 View browser=find(tree,"Browser",true);
                 assertNotNull(browser);assertTrue(browser.isShown());
-                View sheet=find(tree,"JavaScript Console",false);
+                View sheet=find(tree,"DEVELOPER TOOLS",false);
                 assertNotNull(sheet);assertTrue(sheet.isShown());
             });
             scenario.onActivity(a->a.openWorkspace());
@@ -111,6 +129,28 @@ public class StudioSmokeTest {
                 assertNotNull(saved);assertTrue(saved.isShown());
                 assertNull("Workspace must no longer be a bottom navigation destination",
                     find(a.getWindow().getDecorView(),"Workspace",true));
+            });
+        }
+    }
+
+    @Test public void elementsCssIsCollapsedAndTerminalShowsCorrectEnvironment() throws Exception {
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
+            tap(scenario,"Elements");
+            scenario.onActivity(a->{
+                ViewGroup tree=a.findViewById(android.R.id.content);
+                View apply=find(tree,"Apply CSS",true);
+                assertNotNull(apply);assertFalse("CSS editing should be hidden until requested",apply.isShown());
+                View copy=find(tree,"Copy HTML",true);assertNotNull(copy);assertTrue(copy.isShown());
+                View toggle=find(tree,"Edit CSS ▾",true);assertNotNull(toggle);toggle.performClick();
+                assertTrue("CSS editor must expand on demand",apply.isShown());
+            });
+            tap(scenario,"Terminal");
+            scenario.onActivity(a->{
+                ViewGroup tree=a.findViewById(android.R.id.content);
+                View android=find(tree,"Android ▾",true);assertNotNull(android);android.performClick();
+                View termux=find(tree,"Termux ▾",true);assertNotNull(termux);assertTrue(termux.isShown());
+                termux.performClick();
+                assertTrue(find(tree,"Android ▾",true).isShown());
             });
         }
     }
