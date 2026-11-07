@@ -65,7 +65,7 @@ public final class MainActivity extends Activity {
     private ArrayList<String> logs=new ArrayList<>();
     private final ExecutorService http=Executors.newSingleThreadExecutor();
     private String selected="Browser", latestResponse="", previousResponse="";
-    private boolean captureEnabled=true, destroyed=false, tabsExpanded=false;
+    private boolean captureEnabled=true, destroyed=false, tabsExpanded=false, networkRefreshPending=false;
     private String networkCategory="All";
     private LabServer lab;
     private int pendingId=100;
@@ -261,7 +261,7 @@ public final class MainActivity extends Activity {
                 String scheme=request.getUrl().getScheme();
                 if("http".equalsIgnoreCase(scheme)||"https".equalsIgnoreCase(scheme)) {
                     Capture capture=new Capture(request);
-                    runOnUiThread(()->{if(destroyed||!captureEnabled)return;if(!browserTabs.contains(tab))return;if(tab.captures.size()>=200)tab.captures.remove(0);tab.captures.add(capture);if(tab==activeTab&&selected.equals("Network"))renderNetwork();});
+                    runOnUiThread(()->{if(destroyed||!captureEnabled)return;if(!browserTabs.contains(tab))return;if(tab.captures.size()>=200)tab.captures.remove(0);tab.captures.add(capture);if(tab==activeTab&&selected.equals("Network"))scheduleNetworkRefresh();});
                 }
                 return null;
             }
@@ -473,6 +473,14 @@ public final class MainActivity extends Activity {
         networkRows=column();body.addView(networkRows);
         body.addView(label("— = unavailable. WebView does not expose response status, body, size or timing here. Resource types are estimated from URL/headers.",11,MUTED));
     }
+    private void scheduleNetworkRefresh(){
+        if(networkRefreshPending||root==null)return;
+        networkRefreshPending=true;
+        root.postDelayed(()->{
+            networkRefreshPending=false;
+            if(!destroyed&&selected.equals("Network"))renderNetwork();
+        },180);
+    }
     private void renderNetwork() {
         if(networkRows==null||networkFilter==null)return;
         networkRows.removeAllViews();
@@ -639,7 +647,7 @@ public final class MainActivity extends Activity {
         execute.setTextColor(0xff0c1727);execute.setBackground(box(ACCENT));
         Button copyOutput=button("Copy output",()->{
             if(consoleOutput==null)return;
-            String value=consoleOutput.getText().toString();
+            String value=android.text.TextUtils.join("\n\n",logs);
             if(value.trim().isEmpty()){toast("Nothing to copy yet.");return;}
             copy(value);
         });
