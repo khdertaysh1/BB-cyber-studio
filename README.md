@@ -1,7 +1,9 @@
-## 0.2 browser-first redesign
-Compact address bar, up to 8 website tabs with separate console/request histories, full-page tools with optional split mode, and fixed bottom navigation. English controls remain LTR on Arabic devices. Cookies and website storage are shared across tabs.
+## 0.3 mobile-first workspace
+BB Cyber Studio now opens as a browser with a compact address bar, up to eight website tabs, and a three-destination bottom bar: **Browser, Tools, Terminal**. Developer tools open in a resizable bottom sheet above the live page. Tap the expand icon for a full-height panel.
 
-The Terminal now includes a persistent local Android shell with live output, command history and working-directory state. It uses pipes, not a PTY: no bundled Linux packages, Python, or full-screen interactive programs. The separate Termux integration remains available. APK size stays small because Android supplies WebView and the system shell.
+Console now has just **Run** and **Copy output**. Repeater has **Send**, **Copy response**, and collapsible Headers/Body fields. Clear, compare, cURL export and extra tools live under the ⋮ tools menu. Saved requests and Page analysis move to the browser menu, instead of taking permanent bottom-navigation slots.
+
+Network remains a **best-effort request metadata inspector**, not a full HTTP(S) interception proxy; status codes and response bodies for browser traffic remain unavailable. Resource type labels are estimates. The local shell is not a Linux PTY; Termux integration is optional.
 
 # BB Cyber Studio
 
@@ -11,7 +13,7 @@ Browser • JavaScript console • DOM inspector • HTTP Repeater • Termux co
 
 [![Android APK](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml/badge.svg)](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml)
 
-**0.2.0 alpha** — a working foundation, not a complete Burp Suite replacement. No root, account, analytics or hosted backend. Android 8.0+; an updated Android System WebView is recommended.
+**0.3.0 alpha** — a working foundation, not a complete Burp Suite replacement. No root, account, analytics or hosted backend. Android 8.0+; an updated Android System WebView is recommended.
 
 ## Install from GitHub on your phone
 
@@ -19,7 +21,7 @@ The easiest option is [Releases](https://github.com/khdertaysh1/BB-cyber-studio/
 
 1. Open [Actions → Android APK](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml).
 2. Choose a **successful** run for the branch you want. Scroll to **Artifacts**.
-3. Download `BB-cyber-studio-0.2.0-alpha-debug`, extract the ZIP, and install `app-debug.apk`.
+3. Download `BB-cyber-studio-0.3.0-alpha-debug`, extract the ZIP, and install `app-debug.apk`.
 4. GitHub requires sign-in to download Actions artifacts. You may need to allow APK installation for your browser/files app.
 
 These are development APKs signed with a CI debug key. Different runs may require uninstalling the previous build, which deletes its local data. Stable signed releases are a later milestone; never commit signing keys.
@@ -28,28 +30,28 @@ These are development APKs signed with a CI debug key. Different runs may requir
 
 1. Launch the app. Tap **Local lab** on the start page (or in the ⋮ menu). It runs on your phone's loopback interface.
 2. Tap **Send GET** on the lab page, then select **Tools → Network**.
-3. Tap the echo request → **To Repeater** → **Send request**. Inspect the actual HTTP response.
-4. Change its query string, send again, then **Compare last two**.
+3. Tap the echo request → **To Repeater** → **Send**. Inspect the actual HTTP response.
+4. Change its query string, send again, then open **Tools ⋮ → Compare last two responses**.
 5. In **Console**, evaluate `document.title` or `document.body.style.background = '#183247'`.
 6. In **Elements**, inspect `h1` and change its `color`.
-7. **To Terminal** prepares a quoted curl command without executing it. Connect Termux to run it.
+7. In **Repeater**, open **Tools ⋮ → Prepare curl in Terminal** to transfer a quoted command without executing it. Connect Termux to run it.
 
 The local lab is reachable only at `127.0.0.1` using an unguessable per-launch URL. It is an echo fixture, not an isolated sandbox for hostile code. Its address changes after restart; saved requests targeting an old lab address need updating.
 
 ## Implemented vs planned
 
-| Feature | 0.2 alpha |
+| Feature | 0.3 alpha |
 |---|---|
-| Embedded browser | Up to 8 website tabs, compact address bar, back/reload/menu and local lab |
+| Embedded browser | Up to 8 website tabs, compact address bar, local lab; DevTools bottom sheet over the live page |
 | Network | Up to 200 observed request URLs, methods and available headers; filtering and transfer to Repeater |
 | Repeater | GET, POST, PUT, DELETE, HEAD, OPTIONS; editable headers/body; verified TLS; bounded response viewer |
 | Redirects / cookies | Redirects displayed without following; browser cookies are not automatically shared with Repeater |
-| Console | Top-level JavaScript evaluation and WebView console logs |
+| Console | Run/evaluate in the active page, selectable output and one-tap Copy output; clearing in ⋮ menu |
 | Elements | CSS selector → DOM snapshot; inline CSS editing |
 | Analyze | Live DOM map of links/scripts/forms, HTTP asset references on HTTPS, separate response-header review with cookie values omitted |
 | Browser compatibility | Upload file picker, mobile/desktop user-agent switch, zoom, reload/forward and external-browser handoff |
 | Terminal | Persistent local Android shell with streamed output and history; separate Termux command handoff |
-| Workspace | One explicitly saved request encrypted using Android Keystore; delete and browser-data clearing controls |
+| Saved requests | One encrypted request (Android Keystore), accessible via Browser ⋮ → Saved requests; clearing controls in ⋮ menus |
 | HTTP(S) interception | **Not implemented** — Network is metadata observation, not a MITM proxy |
 | Captured bodies/status | **Not implemented** for browser traffic; Repeater shows responses to its own requests |
 | Full DevTools | Not included: JS breakpoints, source debugger, iframe/worker inspection, element picking |
@@ -104,6 +106,6 @@ See [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), and [roadm
 
 **BB Cyber Studio** مساحة عمل للمبرمج والباحث الأمني على أندرويد: متصفح، كونسول JavaScript، فحص عناصر، محرر طلبات HTTP وربط Termux.
 
-لتجربة النسخة: من **Actions** افتح بناء ناجح، ونزّل ملف APK من **Artifacts** وفك الضغط وثبّته. جرّب **Local lab** ثم **Network → To Repeater → Send request**.
+لتجربة النسخة: من **Actions** افتح بناء ناجح، ونزّل ملف APK من **Artifacts** وفك الضغط وثبّته. جرّب **Local lab** ثم **Tools → Network → To Repeater → Send**.
 
 النسخة الأولى تعرض معلومات طلبات المتصفح، وليست اعتراض HTTPS كاملاً. الطرفية المحلية تشغّل أوامر أندرويد وتعرض النتائج مباشرة وتحفظ مسار العمل. بيئة Linux وPython متاحة عبر ربط Termux المنفصل؛ محاكي PTY كامل غير مدمج. واجهة التطبيق حالياً بالإنكليزي، والترجمة العربية الكاملة لاحقاً.

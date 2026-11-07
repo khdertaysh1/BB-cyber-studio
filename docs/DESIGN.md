@@ -1,28 +1,21 @@
-# BB Cyber Studio — Browser-first UI / Network review
+# BB Cyber Studio 0.3 — mobile-first design
 
-## Reference patterns
-- Kiwi Browser on Android: familiar address-and-tab affordances and DevTools on a phone.
-- Chrome DevTools Network: filter chips, request table, row details, Headers/Payload/Response.
-- Firefox Android: compact browser chrome, separate tab management.
+## Principle
+The page is the primary content. The browser shows the address bar and three destinations. Network, Console, Repeater and Elements occupy a **bottom sheet**, with an Expand action. The page stays alive behind it. Analysis and saved requests remain available via the browser ⋮ menu, without taking permanent screen space.
 
-Reference behavior and general navigation patterns only. All BB Cyber Studio layout/code/icons are original; no third-party assets, branding, screenshots or copyrighted source are copied.
+Design patterns are informed by familiar browser chrome, Chrome DevTools Network tabs and Android navigation guidance, but all source code, layout and icons in BB Cyber Studio are original.
 
-## Navigation
-The default Browser surface shows one compact address toolbar (back, URL/search, reload, tab count, menu) and the actual WebView filling the available content area. The horizontal tab strip is hidden until the tab counter is selected. Four fixed destinations remain at the bottom: Browser, Tools, Terminal, Workspace. DevTools appear only when Tools is selected; full-height by default, optional split mode. English UI remains LTR with Arabic device locale. Both landscape and portrait use the same underlying browser state.
+## Console
+A short input followed by **Run** and **Copy output**. The output can also be selected and copied via Android text selection. Clear and reload are available only under ⋮ options.
+
+## Repeater
+A single method + URL row. Headers and Body start collapsed (their contents remain in the editor); **Send** and **Copy response** are the primary actions. Extra actions such as cURL export and comparison are under ⋮. An imported WebView request visibly indicates that cookies and POST bodies were not captured. Native requests do not follow redirects and validate normal TLS.
 
 ## Network
-The Network tab is a DevTools-inspired **metadata viewer**, not a full Chrome DevTools protocol connection or a TLS interception proxy. It provides:
+Request name / host / method, estimated resource type, unavailable status placeholder, live filter and compact detail tabs. The type is heuristic (path extension, main-frame flag, Accept). WebView request callbacks cannot supply complete response status, headers, bodies or timing; never render invented values. Redraw requests are batched on busy pages.
 
-- A recording pause/resume control and clear/reload.
-- URL/method text search, and All/Doc/API/JS/CSS/Img/Font/Other type chips.
-- Request rows with resource name, method/host, best-effort category and an honest **—** unavailable status.
-- General, Headers, Payload and Response detail tabs; Response explains why the browser body is unavailable.
-- User-initiated export of observed metadata to the independent Repeater (browser cookies/POST bodies are not copied).
+## Terminal and saved requests
+Terminal retains a local Android sandbox shell and optional Termux integration; it is not a Linux PTY. Saved requests use AES-GCM and Android Keystore; the Browser menu provides access. The page cannot call native shell code; no JavaScript-native bridge is registered.
 
-Categories are **heuristics** inferred from request URL extensions, main-frame flag and the Accept header. They are not Chromium request initiator classifications. Unknown resource type is Other. WebView does not provide response status, bytes, waterfall timing, response headers/bodies or all navigation types through `shouldInterceptRequest`; we never manufacture them.
-
-## Accessibility and limits
-Touch targets use a minimum 40dp chrome size, network rows 67dp, truncated long URLs, and content descriptions for tab controls. The app has no JavaScript-to-native bridge, doesn't intercept credentials, and doesn't trust invalid TLS. The local Android shell remains pipe-based; Termux is an optional external app.
-
-## Next milestone
-A tested local proxy approach with carefully scoped TLS trust, plus real-device screenshots for small phone / large font / landscape, is required before claiming parity with Kiwi/Chrome DevTools.
+## Known platform constraints
+Android WebView is not a Chromium browser fork. Login providers and sites requiring browser extensions, client certificates, popups or DRM may fail. Browser cookies/storage are shared across tabs, but are not automatically copied to the independent Repeater.
