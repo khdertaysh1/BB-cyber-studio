@@ -318,22 +318,90 @@ public final class MainActivity extends Activity {
         }catch(Exception e){toast(e.getMessage());}
     }
     private void buildNetwork() {
-        LinearLayout body=panel("Network","Network activity","Browser request metadata · last 200 entries. This alpha does not capture response bodies, POST bodies, every redirect, service worker request or WebSocket frame.");
-        networkFilter=edit("Filter by URL or method",1);body.addView(networkFilter);
-        networkFilter.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){renderNetwork();}public void afterTextChanged(android.text.Editable e){}});
-        Button pause=button("Pause capture",()->{});pause.setOnClickListener(v->{captureEnabled=!captureEnabled;pause.setText(captureEnabled?"Pause capture":"Resume capture");});
-        actions(body,pause,button("Clear",()->{captures.clear();renderNetwork();}));
+        LinearLayout body=panel("Network","Network","Observed WebView requests. The source is request metadata, not an HTTP(S) proxy.");
+        LinearLayout toolbar=row();toolbar.setGravity(Gravity.CENTER_VERTICAL);
+        Button record=button("●  Recording",()->{});
+        record.setTextColor(0xfff18b91);
+        record.setOnClickListener(v->{
+            captureEnabled=!captureEnabled;
+            record.setText(captureEnabled?"●  Recording":"○  Paused");
+            record.setTextColor(captureEnabled?0xfff18b91:MUTED);
+        });
+        toolbar.addView(record);toolbar.addView(button("Clear",()->{captures.clear();renderNetwork();}));
+        toolbar.addView(button("Reload",()->{if(web!=null)web.reload();}));
+        body.addView(toolbar);
+
+        networkFilter=edit("Filter URLs, methods or hostnames",1);
+        networkFilter.setSingleLine(true);networkFilter.setBackground(box(0xff202d41));
+        body.addView(networkFilter);
+        networkFilter.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence value,int start,int count,int after){}
+            public void onTextChanged(CharSequence value,int start,int before,int count){renderNetwork();}
+            public void afterTextChanged(android.text.Editable e){}
+        });
+
+        HorizontalScrollView categoriesScroll=new HorizontalScrollView(this);
+        categoriesScroll.setHorizontalScrollBarEnabled(false);
+        networkCategories=row();
+        for(String type:new String[]{"All","Doc","API","JS","CSS","Img","Font","Other"}){
+            Button chip=button(type,()->{networkCategory=type;renderNetwork();});
+            chip.setTextSize(11);chip.setMinHeight(dp(38));
+            chip.setLayoutParams(new LinearLayout.LayoutParams(-2,dp(38)));
+            networkCategories.addView(chip);
+        }
+        categoriesScroll.addView(networkCategories);body.addView(categoriesScroll);
+        networkSummary=label("0 observed",11,MUTED);
+        networkSummary.setPadding(dp(6),dp(10),0,dp(6));body.addView(networkSummary);
+        LinearLayout headings=row();headings.setPadding(dp(10),dp(2),dp(9),dp(3));
+        headings.addView(label("NAME / URL",10,MUTED),new LinearLayout.LayoutParams(0,-2,1));
+        headings.addView(label("TYPE",10,MUTED),new LinearLayout.LayoutParams(dp(55),-2));
+        headings.addView(label("STATUS",10,MUTED),new LinearLayout.LayoutParams(dp(52),-2));
+        body.addView(headings);
         networkRows=column();body.addView(networkRows);
+        body.addView(label("— = unavailable. WebView does not expose response status, body, size or timing here. Resource types are estimated from URL/headers.",11,MUTED));
     }
     private void renderNetwork() {
-        if(networkRows==null)return;networkRows.removeAllViews();String filter=networkFilter.getText().toString().toLowerCase(java.util.Locale.ROOT);
+        if(networkRows==null||networkFilter==null)return;
+        networkRows.removeAllViews();
+        String filter=networkFilter.getText().toString().trim().toLowerCase(java.util.Locale.ROOT);
+        for(int i=0;i<networkCategories.getChildCount();i++){
+            Button chip=(Button)networkCategories.getChildAt(i);
+            boolean active=chip.getText().toString().equals(networkCategory);
+            chip.setTextColor(active?0xff0b1524:MUTED);
+            chip.setBackground(box(active?ACCENT:CARD));
+        }
         int visible=0;
         for(int i=captures.size()-1;i>=0;i--) {
-            Capture capture=captures.get(i);if(!(capture.method+" "+capture.url).toLowerCase(java.util.Locale.ROOT).contains(filter))continue;
-            TextView item=label(capture.method+"  ·  "+Uri.parse(capture.url).getHost()+"\n"+capture.url,12,INK);item.setPadding(dp(12),dp(12),dp(12),dp(12));item.setBackground(box(CARD));
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(4),0,dp(4));item.setLayoutParams(lp);item.setOnClickListener(v->captureDetails(capture));networkRows.addView(item);visible++;
+            Capture capture=captures.get(i);
+            if(!networkCategory.equals("All")&&!networkCategory.equals(capture.category))continue;
+            String searchable=(capture.method+" "+capture.url+" "+capture.category).toLowerCase(java.util.Locale.ROOT);
+            if(!searchable.contains(filter))continue;
+            Uri parsed=Uri.parse(capture.url);
+            String host=parsed.getHost()==null?"Unknown host":parsed.getHost();
+            String path=parsed.getPath()==null?"":parsed.getPath();
+            String filename=path.isEmpty()||path.endsWith("/")?host:path.substring(path.lastIndexOf('/')+1);
+            if(filename.isEmpty())filename=host;
+            LinearLayout item=row();item.setPadding(dp(8),dp(5),dp(7),dp(5));item.setBackground(box(CARD));
+            LinearLayout.LayoutParams itemParams=new LinearLayout.LayoutParams(-1,dp(67));
+            itemParams.setMargins(0,dp(2),0,dp(3));item.setLayoutParams(itemParams);
+            LinearLayout description=column();
+            TextView name=label(filename,13,INK);name.setSingleLine(true);
+            name.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+            description.addView(name);
+            TextView secondary=label(capture.method+" · "+host+(path.isEmpty()?"":path),10,MUTED);
+            secondary.setSingleLine(true);secondary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            description.addView(secondary);
+            item.addView(description,new LinearLayout.LayoutParams(0,-2,1));
+            TextView category=label(capture.category,11,ACCENT);category.setGravity(Gravity.CENTER);
+            item.addView(category,new LinearLayout.LayoutParams(dp(55),-2));
+            TextView statusCell=label("—",15,MUTED);statusCell.setGravity(Gravity.CENTER);
+            item.addView(statusCell,new LinearLayout.LayoutParams(dp(52),-2));
+            item.setContentDescription("Observed "+capture.method+" "+capture.url);
+            item.setOnClickListener(v->captureDetails(capture));
+            networkRows.addView(item);visible++;
         }
-        if(visible==0)networkRows.addView(label("No matching requests. Open Local lab and tap Send GET.",14,MUTED));
+        networkSummary.setText(captures.size()+" observed  ·  "+visible+" shown  ·  Active tab only");
+        if(visible==0)networkRows.addView(label("No matching requests. Reload this page or open the local lab.",13,MUTED));
     }
     private String headersText(Map<String,String> headers,boolean replay) {
         StringBuilder text=new StringBuilder();for(Map.Entry<String,String> h:headers.entrySet()){
@@ -342,13 +410,41 @@ public final class MainActivity extends Activity {
         }return text.toString();
     }
     private void captureDetails(Capture capture) {
-        TextView details=output(capture.method+" "+capture.url+"\n\n"+headersText(capture.headers,false)+"\nRequest body: unavailable in this alpha.");
-        ScrollView scroll=new ScrollView(this);scroll.addView(details);
-        new AlertDialog.Builder(this).setTitle("Observed request").setView(scroll).setNegativeButton("Close",null)
-            .setPositiveButton("To Repeater",(d,w)->{
-                requestUrl.setText(capture.url);requestHeaders.setText(headersText(capture.headers,true));requestBody.setText("");
-                chooseMethod(capture.method);select("Repeater");
-                toast("Metadata copied. Body and browser cookies may be missing; review before sending.");
+        LinearLayout details=column();details.setPadding(dp(10),dp(5),dp(10),dp(5));
+        TextView summary=label(capture.method+"  ·  "+capture.category+" (estimated)",12,ACCENT);
+        details.addView(summary);
+        TextView url=label(capture.url,12,INK);url.setTextIsSelectable(true);details.addView(url);
+        TextView view=output("");
+        HorizontalScrollView tabScroll=new HorizontalScrollView(this);
+        tabScroll.setHorizontalScrollBarEnabled(false);LinearLayout switches=row();
+        String general="Request URL: "+capture.url+"\nMethod: "+capture.method+
+            "\nMain frame: "+capture.mainFrame+"\nSeen at: "+new java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.US).format(new java.util.Date(capture.time))+
+            "\nStatus: unavailable\nSize: unavailable\nTiming: unavailable\n"+
+            "Resource type: estimated from filename or Accept header.";
+        String headers="OBSERVED REQUEST HEADERS\n\n"+headersText(capture.headers,false)+
+            "\nResponse headers: unavailable (not intercepted).";
+        String params=Uri.parse(capture.url).getEncodedQuery();
+        String payload="QUERY STRING\n\n"+(params==null||params.isEmpty()?"(no query parameters)":params)+
+            "\n\nRequest body: unavailable in WebView callback, including POST bodies.";
+        String response="Browser response not captured.\n\nTo inspect an independently sent HTTP response, transfer this request to Repeater. Browser cookies and the original request body will not be copied automatically.";
+        for(String tab:new String[]{"General","Headers","Payload","Response"}){
+            Button choice=button(tab,()->{
+                if(tab.equals("General"))view.setText(general);
+                else if(tab.equals("Headers"))view.setText(headers);
+                else if(tab.equals("Payload"))view.setText(payload);
+                else view.setText(response);
+            });
+            switches.addView(choice);
+        }
+        tabScroll.addView(switches);details.addView(tabScroll);
+        view.setText(general);
+        ScrollView scroll=new ScrollView(this);scroll.addView(view);
+        details.addView(scroll,new LinearLayout.LayoutParams(-1,dp(260)));
+        new AlertDialog.Builder(this).setTitle("Request details").setView(details)
+            .setNegativeButton("Close",null).setPositiveButton("To Repeater",(d,w)->{
+                requestUrl.setText(capture.url);requestHeaders.setText(headersText(capture.headers,true));
+                requestBody.setText("");chooseMethod(capture.method);select("Repeater");
+                toast("Only observed metadata copied. Verify headers and enter a body before replay.");
             }).show();
     }
     private void buildRepeater() {
