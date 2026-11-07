@@ -75,7 +75,7 @@ public class StudioSmokeTest {
             scenario.onActivity(a->{TextView out=(TextView)findDescription(a.getWindow().getDecorView(),"Console output");assertTrue(out.getText().toString().contains("New tab"));assertFalse(out.getText().toString().contains("BB · Local lab"));});screenshot("07-tabs");
             scenario.onActivity(a->{View old=findDescription(a.getWindow().getDecorView(),"Switch tab BB · Local lab");assertNotNull(old);old.performClick();});
             tap(scenario,"Run");waitFor(scenario,"BB · Local lab");
-            scenario.onActivity(a->a.openWorkspace());tap(scenario,"Save request");tap(scenario,"Load request");waitFor(scenario,"HTTP Repeater");
+            scenario.onActivity(a->a.openWorkspace());tap(scenario,"Save");tap(scenario,"Load into Repeater");waitFor(scenario,"HTTP Repeater");
         }
     }
     @Test public void compactConsoleCopiesAndBrowserStaysAliveBehindTools() throws Exception {
