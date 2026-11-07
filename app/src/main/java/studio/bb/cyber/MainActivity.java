@@ -55,6 +55,8 @@ public final class MainActivity extends Activity {
     private EditText address, jsInput, requestUrl, requestHeaders, requestBody, commandInput, projectName, networkFilter;
     private Spinner method;
     private Button sendButton, tabCounter;
+    private TextView repeaterNotice, sheetLabel;
+    private LinearLayout repeaterAdvanced;
     private TextView networkSummary;
     private final Map<String,View> panels=new LinkedHashMap<>();
     private final Map<String,Button> tabs=new LinkedHashMap<>();
@@ -180,9 +182,10 @@ public final class MainActivity extends Activity {
         TextView handle=label("━━",13,0xff71849c);handle.setGravity(Gravity.CENTER);
         grab.addView(handle,new LinearLayout.LayoutParams(-1,dp(18)));toolsSheet.addView(grab);
         toolHeader=row();toolHeader.setPadding(dp(12),0,dp(8),0);
-        TextView scope=label("DEVTOOLS",12,INK);scope.setTypeface(null,Typeface.BOLD);
-        toolHeader.addView(scope,new LinearLayout.LayoutParams(0,-2,1));
-        toolHeader.addView(button("Expand",()->{toolsExpanded=!toolsExpanded;updateSheetHeight();select(selected);}));
+        sheetLabel=label("DEVTOOLS",12,INK);sheetLabel.setTypeface(null,Typeface.BOLD);
+        toolHeader.addView(sheetLabel,new LinearLayout.LayoutParams(0,-2,1));
+        toolHeader.addView(icon("⤢","Expand or collapse tools",()->{toolsExpanded=!toolsExpanded;updateSheetHeight();}));
+        toolHeader.addView(icon("⋮","Tool options",this::toolOptionsMenu));
         toolHeader.addView(icon("×","Close tools",()->select("Browser")));
         toolsSheet.addView(toolHeader);
 
@@ -361,6 +364,7 @@ public final class MainActivity extends Activity {
         tabLine.setVisibility(browser&&tabsExpanded?View.VISIBLE:View.GONE);
         urlBar.setVisibility(terminal||workspace?View.GONE:View.VISIBLE);
         navigationScroll.setVisibility(tool?View.VISIBLE:View.GONE);
+        sheetLabel.setText(terminal?"TERMINAL":workspace?"SAVED REQUESTS":name.toUpperCase(java.util.Locale.US));
         toolsSheet.setVisibility(browser?View.GONE:View.VISIBLE);
         // Keep WebView alive below the sheet. The keyboard may resize the stage.
         updateSheetHeight();
@@ -378,6 +382,45 @@ public final class MainActivity extends Activity {
         if(name.equals("Network"))renderNetwork();
         status.setText(name+" · "+(activeTab==null?"":activeTab.title));
     }
+    private void toolOptionsMenu(){
+        String[] choices;
+        if(selected.equals("Console"))choices=new String[]{"Clear console","Reload website"};
+        else if(selected.equals("Repeater"))choices=new String[]{
+            "Copy request as curl","Prepare curl in Terminal","Compare last two responses","Clear response"};
+        else if(selected.equals("Network"))choices=new String[]{"Clear request list","Reload website"};
+        else if(selected.equals("Terminal"))choices=new String[]{"New shell session","Open Termux","Termux setup","Clear output"};
+        else if(selected.equals("Workspace"))choices=new String[]{"Delete saved request","Clear browser data"};
+        else choices=new String[]{"Page analysis","Open Network"};
+        new AlertDialog.Builder(this).setTitle(selected+" options").setItems(choices,(dialog,which)->{
+            if(selected.equals("Console")){
+                if(which==0){logs.clear();consoleOutput.setText("");}else web.reload();
+            }else if(selected.equals("Repeater")){
+                if(which==0||which==1)try{
+                    String curl=spec().toCurl();
+                    if(which==0)confirm("Copy request?","Headers or body may include credentials.",
+                        ()->copy(curl));
+                    else{commandInput.setText(curl);select("Terminal");
+                        toast("Review before running. No command was executed.");}
+                }catch(Exception e){toast(e.getMessage());}
+                else if(which==2)compareResponses();
+                else{previousResponse="";latestResponse="";responseOutput.setText("No response yet.");}
+            }else if(selected.equals("Network")){
+                if(which==0){captures.clear();renderNetwork();}else web.reload();
+            }else if(selected.equals("Terminal")){
+                if(which==0)startLocalShell();
+                else if(which==1)openTermux();
+                else if(which==2)termuxSetup();
+                else terminalOutput.setText("");
+            }else if(selected.equals("Workspace")){
+                if(which==0)confirm("Delete saved request?","The encrypted request will be removed.",()->{
+                    try{WorkspaceStore.delete(this);toast("Saved request deleted.");}
+                    catch(Exception e){toast(e.getMessage());}
+                });
+                else confirm("Clear browser data?","Clear cookies and web storage?",this::clearBrowserData);
+            }else if(which==0)openAnalyze();else select("Network");
+        }).show();
+    }
+
     private void navigate() {
         String url=address.getText().toString().trim();if(url.isEmpty())return;if(!url.contains(":")&&(url.contains(" ")||!url.contains(".")))url="https://duckduckgo.com/?q="+Uri.encode(url);else if(!url.contains(":"))url="https://"+url;
         try { // Fragments are valid for browsing, unlike native request replay.
@@ -513,21 +556,58 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Request details").setView(details)
             .setNegativeButton("Close",null).setPositiveButton("To Repeater",(d,w)->{
                 requestUrl.setText(capture.url);requestHeaders.setText(headersText(capture.headers,true));
-                requestBody.setText("");chooseMethod(capture.method);select("Repeater");
-                toast("Only observed metadata copied. Verify headers and enter a body before replay.");
+                requestBody.setText("");chooseMethod(capture.method);
+                repeaterNotice.setText("Imported observed metadata only. Original POST body, cookies and browser responses are unavailable.");
+                requestHeaders.setVisibility(View.VISIBLE);
+                select("Repeater");
             }).show();
     }
     private void buildRepeater() {
-        LinearLayout body=panel("Repeater","Request workbench","Independent HTTP client · verified TLS · no automatic redirects or browser cookie sharing. Responses are limited to 1 MiB.");
-        method=new Spinner(this);ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"GET","POST","PUT","DELETE","HEAD","OPTIONS"});method.setAdapter(adapter);body.addView(method);
-        requestUrl=edit("Request URL",1);body.addView(requestUrl);requestHeaders=edit("Headers — one Name: value per line",3);body.addView(requestHeaders);requestBody=edit("UTF-8 request body",3);body.addView(requestBody);
+        LinearLayout body=panel("Repeater","HTTP Repeater","Independent client with verified TLS. Response max 1 MiB.");
+        repeaterNotice=label("Independent HTTP client · browser cookies and request body are not copied.",11,MUTED);
+        body.addView(repeaterNotice);
+        LinearLayout requestLine=row();
+        method=new Spinner(this);ArrayAdapter<String> adapter=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_dropdown_item,
+            new String[]{"GET","POST","PUT","DELETE","HEAD","OPTIONS"});
+        method.setAdapter(adapter);
+        requestLine.addView(method,new LinearLayout.LayoutParams(dp(105),dp(52)));
+        requestUrl=edit("https://example.com/path",1);
+        requestUrl.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+        requestLine.addView(requestUrl,new LinearLayout.LayoutParams(0,dp(48),1));
+        body.addView(requestLine);
+
+        repeaterAdvanced=column();
+        requestHeaders=edit("Headers  ·  one Name: value per line",3);
+        requestBody=edit("Body (UTF-8)",3);
         requestHeaders.setTypeface(Typeface.MONOSPACE);requestBody.setTypeface(Typeface.MONOSPACE);
-        sendButton=button("Send request",this::sendRequest);
-        actions(body,sendButton,button("To Terminal",()->{
-            try{commandInput.setText(spec().toCurl());select("Terminal");toast("Prepared only. Review the command, then tap Run.");}catch(Exception e){toast(e.getMessage());}
-        }),button("Copy curl",()->{try{String curl=spec().toCurl();confirm("Copy request?","Headers and body may include credentials. The command will be placed on your clipboard.",()->copy(curl));}catch(Exception e){toast(e.getMessage());}}));
-        actions(body,button("Compare last two",this::compareResponses),button("Clear response",()->{latestResponse="";previousResponse="";responseOutput.setText("No response yet.");}));
-        responseOutput=output("No response yet. Try the local echo endpoint.");body.addView(responseOutput);
+        requestHeaders.setVisibility(View.GONE);requestBody.setVisibility(View.GONE);
+        LinearLayout controls=row();
+        Button headersToggle=button("Headers ▾",()->{
+            boolean show=requestHeaders.getVisibility()!=View.VISIBLE;
+            requestHeaders.setVisibility(show?View.VISIBLE:View.GONE);
+        });
+        Button bodyToggle=button("Body ▾",()->{
+            boolean show=requestBody.getVisibility()!=View.VISIBLE;
+            requestBody.setVisibility(show?View.VISIBLE:View.GONE);
+        });
+        controls.addView(headersToggle);controls.addView(bodyToggle);repeaterAdvanced.addView(controls);
+        repeaterAdvanced.addView(requestHeaders);repeaterAdvanced.addView(requestBody);
+        body.addView(repeaterAdvanced);
+
+        sendButton=button("Send",this::sendRequest);
+        sendButton.setTextColor(0xff0c1727);sendButton.setBackground(box(ACCENT));
+        actions(body,sendButton,button("Copy response",()->{
+            String text=responseOutput.getText().toString();
+            if(text.trim().isEmpty()||text.equals("No response yet.")){
+                toast("Send a request first.");return;
+            }
+            confirm("Copy response?","Responses may contain session tokens or private data.",
+                ()->copy(text));
+        }));
+        TextView resultTitle=label("RESPONSE",11,MUTED);body.addView(resultTitle);
+        responseOutput=output("No response yet.");responseOutput.setContentDescription("HTTP response output");
+        body.addView(responseOutput);
     }
     private void chooseMethod(String value){for(int i=0;i<method.getCount();i++)if(method.getItemAtPosition(i).equals(value)){method.setSelection(i);return;}method.setSelection(0);toast("Unsupported method "+value+"; reset to GET. Review before sending.");}
     private RequestSpec spec(){return new RequestSpec(method.getSelectedItem().toString(),requestUrl.getText().toString(),requestHeaders.getText().toString(),requestBody.getText().toString());}
@@ -546,10 +626,23 @@ public final class MainActivity extends Activity {
         if(changed==0)diff.append("Responses are identical.");showText("Response comparison",diff.toString());
     }
     private void buildConsole(){
-        LinearLayout body=panel("Console","JavaScript console","Runs in the top-level page. Logs are in memory; max 200 entries. This is not the full Chrome debugger.");
-        jsInput=edit("JavaScript expression or statements",2);jsInput.setTypeface(Typeface.MONOSPACE);jsInput.setText("document.title");body.addView(jsInput);
-        actions(body,button("Evaluate",this::evaluate),button("Clear logs",()->{logs.clear();consoleOutput.setText("");}),button("Reload page",()->web.reload()));
-        consoleOutput=output("Page console messages appear here.");consoleOutput.setContentDescription("Console output");body.addView(consoleOutput);
+        LinearLayout body=panel("Console","JavaScript Console",
+            "Executes in the selected page. Output is copied only on demand.");
+        jsInput=edit("JavaScript expression or statement",2);
+        jsInput.setTypeface(Typeface.MONOSPACE);jsInput.setText("document.title");
+        jsInput.setContentDescription("JavaScript input");body.addView(jsInput);
+        Button execute=button("Run",this::evaluate);
+        execute.setTextColor(0xff0c1727);execute.setBackground(box(ACCENT));
+        Button copyOutput=button("Copy output",()->{
+            if(consoleOutput==null)return;
+            String value=consoleOutput.getText().toString();
+            if(value.trim().isEmpty()){toast("Nothing to copy yet.");return;}
+            copy(value);
+        });
+        actions(body,execute,copyOutput);
+        consoleOutput=output("Console output appears here. Long press to select individual text.");
+        consoleOutput.setTextIsSelectable(true);
+        consoleOutput.setContentDescription("Console output");body.addView(consoleOutput);
     }
     private void evaluate(){
         String source=jsInput.getText().toString();if(source.trim().isEmpty())return;final BrowserTab evaluatedTab=activeTab;addLog("> "+source);
