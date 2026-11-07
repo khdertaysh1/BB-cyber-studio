@@ -1,25 +1,21 @@
-## 0.2 browser-first redesign
-Compact address bar, up to 8 website tabs with separate console/request histories, full-page tools with optional split mode, and fixed bottom navigation. English controls remain LTR on Arabic devices. Cookies and website storage are shared across tabs.
+# BB Cyber Studio 0.3 — Android alpha (preview)
 
-The Terminal now includes a persistent local Android shell with live output, command history and working-directory state. It uses pipes, not a PTY: no bundled Linux packages, Python, or full-screen interactive programs. The separate Termux integration remains available. APK size stays small because Android supplies WebView and the system shell.
+## Browser-first usability
+- Website takes the full browser area until Tools is opened.
+- Live DevTools appear as a compact, expandable bottom sheet instead of replacing the whole page.
+- Bottom navigation reduced to Browser, Tools and Terminal.
+- Saved Request and Page Analysis moved to the browser menu.
 
-# BB Cyber Studio · Android alpha
+## Tools
+- Console: Run + Copy output; Android text selection also available.
+- Network: compact observed-request table, resource grouping, quick filters and batched rendering on busy websites.
+- Repeater: method/URL, collapsible Headers and Body, Send and Copy response. Extras live under ⋮.
+- The metadata-import notice is a quiet in-panel explanation rather than an alarming toast.
+- Local Android shell retains streaming output, working-directory state and optional Termux integration.
 
-Download **BB-cyber-studio.apk** below. Android 8.0+; no root required. No account or cloud backend. Termux is an optional separate installation.
+## Limits
+This is **not** Burp Suite or complete Chrome DevTools. WebView does not expose the full browser HTTP response, original POST body, Cookie header, WebSocket frames, detailed initiator or timings through its request callback. Repeater makes its own HTTP requests; it does not reuse the browser's authenticated cookie jar. Do not treat missing response data as evidence of a vulnerability.
 
-This foundation includes a browser, JavaScript console, DOM/style inspector, observed request metadata, HTTP Repeater, response comparison, page analysis, Termux command results, encrypted request saving and a local demo lab. Landscape mode preserves the workspace.
+No root, hosted service, paid backend, telemetry or unsafe TLS override. The built-in shell uses Android sandbox commands, not a full Linux PTY. Termux must be separately installed and authorized.
 
-**Try it:** Local lab → Send GET → Network → select the echo request → To Repeater → Send request.
-
-## Current limits
-
-- This is not full Burp Suite or Chrome DevTools. Full HTTPS interception, browser request/response body capture, interactive embedded PTY, WebSocket inspection and isolated profiles are not implemented.
-- Network lists available WebView request metadata. Repeater performs separate HTTP requests; browser cookies are not automatically shared.
-- Header analysis is a separate unauthenticated GET. Missing headers are observations, not proof of a vulnerability.
-- Some websites and login providers reject embedded WebViews. No universal website compatibility is claimed.
-- Termux integration requires `allow-external-apps=true` and its Android permission; output arrives when commands finish. It still needs testing on physical Termux installations.
-- UI is currently English; Arabic localization is planned.
-
-This **development APK** uses a CI debug signing key. Updates from another build may require uninstalling the old app, deleting its local saved data. A stable release signing setup is not included yet. JVM tests, Android lint, APK compilation and Android 15 emulator smoke tests gate this prerelease; they do not establish compatibility with every device or website.
-
-بالعربي: نزّل **BB-cyber-studio.apk** وثبّته. جرّب المختبر المحلي أولاً. هذه نسخة أولية حقيقية، لكن اعتراض HTTPS الكامل والطرفية التفاعلية المدمجة لم يُنجزا بعد. نتائج تحليل الترويسات ملاحظات تحتاج مراجعة، وليست إثباتاً لثغرات.
+The CI APK uses a debug signing identity. An install over a different CI build may fail due to signing mismatch; uninstalling deletes the app's local data. Only releases from the main branch are published, after CI passes.
