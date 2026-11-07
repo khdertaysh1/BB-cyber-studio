@@ -1,0 +1,93 @@
+name: Android APK
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Test, lint and build
+        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BB-cyber-studio-0.2.0-alpha-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.html
+  device-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Enable KVM
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libpulse0 libnss3 libx11-6 libxcb1 libxkbcommon0 libasound2t64 libgl1 libglu1-mesa
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test on Android 15
+        run: bash scripts/device-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: device-smoke-reports
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+            device-screenshots/
+            emulator.log
+            device-logcat.txt
+  publish-alpha:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, device-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: BB-cyber-studio-0.2.0-alpha-debug
+          path: apk
+      - name: Publish tested development APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v0.2.0-alpha.${{ github.run_number }}
+        run: |
+          mv apk/app-debug.apk apk/BB-cyber-studio.apk
+          sha256sum apk/BB-cyber-studio.apk > apk/SHA256SUMS.txt
+          gh release create "$TAG" apk/BB-cyber-studio.apk apk/SHA256SUMS.txt --target "$GITHUB_SHA" --title "BB Cyber Studio 0.2 — Android alpha" --notes-file docs/RELEASE_NOTES.md --prerelease

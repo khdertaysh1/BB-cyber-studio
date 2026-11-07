@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BB · Local lab</title><style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:26px 22px;background:#0b1220;color:#e5edf8;font:15px system-ui;line-height:1.6}small{color:#52e0c4;letter-spacing:2px}h1{font-size:36px;line-height:1.1;margin:15px 0}p{color:#a8b9cd}article{background:#142137;border:1px solid #263850;border-radius:16px;padding:20px;margin:22px 0}button{background:#52e0c4;color:#08251f;border:0;border-radius:9px;padding:14px 18px;font-weight:700;margin:5px 5px 5px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;color:#b6cbed}code{color:#52e0c4}.badge{border:1px solid #315249;border-radius:30px;padding:5px 10px;font-size:12px}input{background:#0b1220;border:1px solid #33465d;padding:12px;color:white;width:100%;border-radius:8px}
+</style><small>BETWEEN BYTES / LOCAL LAB</small><h1>Your pocket.<br>Your workspace.</h1><span class="badge">LOCAL ONLY · NO ACCOUNT · NO ROOT</span><p>A real page served by your phone. Explore a request, inspect an element, or run JavaScript.</p>
+<article><h3>01 / Make a request</h3><p>Send a request to the local echo API, then open <b>Network</b> in the app.</p><input id="message" aria-label="Message" value="Hello from BB Cyber Studio"><button id="get">Send GET</button><button id="post">Send POST</button><pre id="result">Waiting for your first request.</pre></article>
+<article><h3>02 / Explore the console</h3><p>Open <b>Console</b> and evaluate:</p><code>document.title</code><p>Or change the page:</p><code>document.body.style.background = '#183247'</code><button id="log">Write a console message</button></article>
+<article><h3>03 / Try Repeater</h3><p>Tap a GET request in Network and send it to Repeater. Change the query string and send it again. POST bodies are not captured by this alpha; enter them manually.</p></article>
+<script>
+document.querySelector('#get').onclick=()=>send('GET');document.querySelector('#post').onclick=()=>send('POST');
+async function send(method){try{let opts={method};if(method==='POST'){opts.headers={'Content-Type':'application/json'};opts.body=JSON.stringify({message:document.querySelector('#message').value})}let r=await fetch('echo?from=browser',opts);let data=await r.json();document.querySelector('#result').textContent=JSON.stringify(data,null,2);console.log('Echo response',data)}catch(e){document.querySelector('#result').textContent=e.message;console.error(e.message)}}
+document.querySelector('#log').onclick=()=>console.log('BB lab is ready. This message came from the page.');
+console.info('Welcome to the BB local lab');
+</script></html>
