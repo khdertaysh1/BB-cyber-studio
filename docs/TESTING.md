@@ -31,3 +31,11 @@ The Termux handoff is completion-based. The local Android shell streams output, 
 - Three main destinations only (Browser, Tools, Terminal); no Workspace button in the bottom bar.
 - Busy sites with many resource requests do not continuously rebuild the list for each individual callback.
 - On a physical device, also test Termux permission and Run Command integration: the emulator suite does not install Termux.
+
+
+## v0.4 acceptance additions
+- Confirm Google search is shown on the new-tab page, and Local Lab / Example Website shortcuts are absent.
+- Console has Run + Copy. After evaluating document.title, Copy should put exactly the last returned result on Android's clipboard; all logs stay accessible through overflow.
+- Elements: Inspect HTML and Copy HTML. Verify the CSS editor is initially hidden, opens on Edit CSS, and style changes are local.
+- Terminal: default is Android mode; switching to Termux is explicit. pkg update in Android mode must explain why it cannot run, not silently fail with a shell not-found message.
+- On a real device, verify Termux is installed, allow-external-apps enabled and RUN_COMMAND permission granted before testing package commands.

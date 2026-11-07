@@ -30,7 +30,7 @@ jobs:
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: BB-cyber-studio-0.3.0-alpha-debug
+          name: BB-cyber-studio-0.4.0-alpha-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
@@ -81,13 +81,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: BB-cyber-studio-0.3.0-alpha-debug
+          name: BB-cyber-studio-0.4.0-alpha-debug
           path: apk
       - name: Publish tested development APK
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: v0.3.0-alpha.${{ github.run_number }}
+          TAG: v0.4.0-alpha.${{ github.run_number }}
         run: |
           mv apk/app-debug.apk apk/BB-cyber-studio.apk
           sha256sum apk/BB-cyber-studio.apk > apk/SHA256SUMS.txt
-          gh release create "$TAG" apk/BB-cyber-studio.apk apk/SHA256SUMS.txt --target "$GITHUB_SHA" --title "BB Cyber Studio 0.3 — Android alpha" --notes-file docs/RELEASE_NOTES.md --prerelease
+          gh release create "$TAG" apk/BB-cyber-studio.apk apk/SHA256SUMS.txt --target "$GITHUB_SHA" --title "BB Cyber Studio 0.4 — Android alpha" --notes-file docs/RELEASE_NOTES.md --prerelease
