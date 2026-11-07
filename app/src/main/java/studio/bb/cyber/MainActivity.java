@@ -36,9 +36,9 @@ import java.util.concurrent.Executors;
 
 /** Native control surface. Untrusted pages never receive a JavaScript-to-native bridge. */
 public final class MainActivity extends Activity {
-    private static final int BG=0xff0b1220, CARD=0xff142137, INK=0xffe5edf8, MUTED=0xff9eafc4, ACCENT=0xff52e0c4;
+    private static final int BG=0xff0b1018, CARD=0xff172231, INK=0xffedf3fa, MUTED=0xff9cacc1, ACCENT=0xff77afff;
     private static final String TERMUX_PERMISSION="com.termux.permission.RUN_COMMAND";
-    private LinearLayout root, content, browserBox, panelHost, networkRows, nav, siteTabs, bottomNav, toolHeader;
+    private LinearLayout root, content, browserBox, panelHost, networkRows, nav, siteTabs, bottomNav, toolHeader, tabLine, networkCategories;
     private FrameLayout webHost;
     private ProgressBar loading;
     private final ArrayList<BrowserTab> browserTabs=new ArrayList<>();
@@ -54,14 +54,16 @@ public final class MainActivity extends Activity {
     private TextView status, consoleOutput, responseOutput, terminalOutput, elementsOutput;
     private EditText address, jsInput, requestUrl, requestHeaders, requestBody, commandInput, projectName, networkFilter;
     private Spinner method;
-    private Button sendButton;
+    private Button sendButton, tabCounter;
+    private TextView networkSummary;
     private final Map<String,View> panels=new LinkedHashMap<>();
     private final Map<String,Button> tabs=new LinkedHashMap<>();
     private ArrayList<Capture> captures=new ArrayList<>();
     private ArrayList<String> logs=new ArrayList<>();
     private final ExecutorService http=Executors.newSingleThreadExecutor();
     private String selected="Browser", latestResponse="", previousResponse="";
-    private boolean captureEnabled=true, destroyed=false;
+    private boolean captureEnabled=true, destroyed=false, tabsExpanded=false;
+    private String networkCategory="All";
     private LabServer lab;
     private int pendingId=100;
     private ValueCallback<Uri[]> fileCallback;
@@ -73,8 +75,12 @@ public final class MainActivity extends Activity {
         final ArrayList<String> logs=new ArrayList<>();
     }
     private static final class Capture {
-        final String url, method; final Map<String,String> headers;
-        Capture(WebResourceRequest r) { url=r.getUrl().toString(); method=r.getMethod(); headers=new LinkedHashMap<>(r.getRequestHeaders()); }
+        final String url, method, category; final long time; final boolean mainFrame; final Map<String,String> headers;
+        Capture(WebResourceRequest r) {
+            url=r.getUrl().toString(); method=r.getMethod(); mainFrame=r.isForMainFrame();
+            headers=new LinkedHashMap<>(r.getRequestHeaders());category=NetworkClassifier.classify(url,mainFrame,headers);
+            time=System.currentTimeMillis();
+        }
     }
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -93,7 +99,7 @@ public final class MainActivity extends Activity {
     private int dp(int value) { return Math.round(value*getResources().getDisplayMetrics().density); }
     private LinearLayout column() { LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);return v; }
     private LinearLayout row() { LinearLayout v=new LinearLayout(this);v.setGravity(Gravity.CENTER_VERTICAL);return v; }
-    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(10));d.setStroke(dp(1),0xff263850);return d; }
+    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(14));d.setStroke(dp(1),0xff2a3b50);return d; }
     private TextView label(String value,int size,int color) {
         TextView v=new TextView(this);v.setText(value);v.setTextSize(size);v.setTextColor(color);v.setPadding(dp(4),dp(5),dp(4),dp(5));return v;
     }
@@ -107,9 +113,9 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(5),0,dp(5));v.setLayoutParams(lp);return v;
     }
     private Button button(String title,Runnable action) {
-        Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setSingleLine(true);b.setEllipsize(android.text.TextUtils.TruncateAt.END);b.setTextColor(ACCENT);b.setTextSize(12);b.setMinHeight(dp(48));b.setMinimumWidth(0);b.setMinWidth(0);b.setPadding(dp(12),0,dp(12),0);b.setStateListAnimator(null);
+        Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setSingleLine(true);b.setEllipsize(android.text.TextUtils.TruncateAt.END);b.setTextColor(INK);b.setTextSize(12);b.setMinHeight(dp(44));b.setMinimumWidth(0);b.setMinWidth(0);b.setPadding(dp(14),0,dp(14),0);b.setStateListAnimator(null);
         b.setBackground(box(CARD)); b.setOnClickListener(v->action.run());
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(48));lp.setMargins(dp(2),dp(3),dp(2),dp(3));b.setLayoutParams(lp);return b;
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(44));lp.setMargins(dp(2),dp(3),dp(2),dp(3));b.setLayoutParams(lp);return b;
     }
     private void actions(LinearLayout parent,Button...buttons) {
         HorizontalScrollView scroller=new HorizontalScrollView(this);scroller.setHorizontalScrollBarEnabled(false);
@@ -120,7 +126,7 @@ public final class MainActivity extends Activity {
         TextView heading=label(title,18,INK);heading.setTypeface(null,Typeface.BOLD);
         LinearLayout headingRow=row();headingRow.addView(heading,new LinearLayout.LayoutParams(0,-2,1));headingRow.addView(icon("ⓘ","About "+name,()->showText(title,caption)));body.addView(headingRow);
         String hint=caption;
-        if(name.equals("Network"))hint="Requests from this tab · tap a row to inspect";
+        if(name.equals("Network"))hint="Live request metadata · statuses and response bodies need interception";
         else if(name.equals("Console"))hint="Run JavaScript in the active tab";
         else if(name.equals("Elements"))hint="Inspect an element or edit its style";
         else if(name.equals("Repeater"))hint="Edit a request · send · inspect the response";
@@ -136,32 +142,64 @@ public final class MainActivity extends Activity {
         });
         root.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         status=label("Ready",10,MUTED);
-        LinearLayout tabLine=row();tabLine.setBackgroundColor(0xff0f1725);
+        // Chrome occupies just one toolbar by default. The tab strip is opened on demand.
+        tabLine=row();tabLine.setPadding(dp(4),0,dp(6),0);tabLine.setBackgroundColor(0xff111b29);
         HorizontalScrollView siteScroll=new HorizontalScrollView(this);siteScroll.setHorizontalScrollBarEnabled(false);
-        siteTabs=row();siteScroll.addView(siteTabs);tabLine.addView(siteScroll,new LinearLayout.LayoutParams(0,dp(44),1));
+        siteTabs=row();siteScroll.addView(siteTabs);tabLine.addView(siteScroll,new LinearLayout.LayoutParams(0,dp(46),1));
         tabLine.addView(icon("+","New tab",()->newTab(null)));root.addView(tabLine);
-        LinearLayout urlBar=row();urlBar.setPadding(dp(4),0,dp(4),0);
-        urlBar.addView(icon("‹","Back",()->{if(web.canGoBack())web.goBack();}));
-        address=edit("Search or enter address",1);address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);address.setImeOptions(EditorInfo.IME_ACTION_GO);address.setSelectAllOnFocus(true);
+        tabLine.setVisibility(View.GONE);
+
+        LinearLayout urlBar=row();urlBar.setPadding(dp(4),dp(3),dp(4),dp(3));urlBar.setBackgroundColor(0xff111a27);
+        urlBar.addView(icon("‹","Back",()->{if(web!=null&&web.canGoBack())web.goBack();}));
+        address=edit("Search or enter address",1);
+        address.setBackground(box(0xff223146));address.setTextSize(14);
+        address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+        address.setImeOptions(EditorInfo.IME_ACTION_GO);address.setSelectAllOnFocus(true);
         address.setOnEditorActionListener((v,action,event)->{if(action==EditorInfo.IME_ACTION_GO){navigate();return true;}return false;});
-        urlBar.addView(address,new LinearLayout.LayoutParams(0,dp(44),1));
-        urlBar.addView(icon("↻","Reload",()->web.reload()));urlBar.addView(icon("⋮","Browser menu",this::browserMenu));root.addView(urlBar);
-        loading=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);loading.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));root.addView(loading,new LinearLayout.LayoutParams(-1,dp(2)));
+        LinearLayout.LayoutParams addressLayout=new LinearLayout.LayoutParams(0,dp(44),1);
+        addressLayout.setMargins(dp(1),0,dp(1),0);urlBar.addView(address,addressLayout);
+        urlBar.addView(icon("⟳","Reload",()->{if(web!=null)web.reload();}));
+        tabCounter=icon("1","Show tabs",()->{tabsExpanded=!tabsExpanded;tabLine.setVisibility(tabsExpanded?View.VISIBLE:View.GONE);});
+        tabCounter.setTextSize(16);urlBar.addView(tabCounter);
+        urlBar.addView(icon("⋮","Browser menu",this::browserMenu));root.addView(urlBar);
+
+        loading=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        loading.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        root.addView(loading,new LinearLayout.LayoutParams(-1,dp(2)));
         nav=row();navigationScroll=new HorizontalScrollView(this);navigationScroll.setHorizontalScrollBarEnabled(false);navigationScroll.addView(nav);
-        for(String name:new String[]{"Network","Console","Elements","Repeater","Analyze"}){Button tab=button(name,()->select(name));tabs.put(name,tab);nav.addView(tab);}
+        for(String name:new String[]{"Network","Console","Elements","Repeater","Analyze"}){
+            Button tab=button(name,()->select(name));tabs.put(name,tab);nav.addView(tab);
+        }
         root.addView(navigationScroll);
-        toolHeader=row();TextView scope=label("TOOLS · ACTIVE TAB",10,MUTED);toolHeader.addView(scope,new LinearLayout.LayoutParams(0,-2,1));
-        toolHeader.addView(button("Split",()->{splitTools=!splitTools;select(selected);}));toolHeader.addView(icon("×","Close tools",()->select("Browser")));root.addView(toolHeader);
+        toolHeader=row();toolHeader.setPadding(dp(10),dp(1),dp(6),dp(1));toolHeader.setBackgroundColor(0xff101927);
+        TextView scope=label("DEVTOOLS  /  CURRENT TAB",10,MUTED);toolHeader.addView(scope,new LinearLayout.LayoutParams(0,-2,1));
+        toolHeader.addView(button("Split",()->{splitTools=!splitTools;select(selected);}));
+        toolHeader.addView(icon("×","Close tools",()->select("Browser")));root.addView(toolHeader);
         content=column();root.addView(content,new LinearLayout.LayoutParams(-1,0,1));
-        browserBox=column();webHost=new FrameLayout(this);browserBox.addView(webHost,new LinearLayout.LayoutParams(-1,-1));content.addView(browserBox,new LinearLayout.LayoutParams(-1,0,1));
+        browserBox=column();webHost=new FrameLayout(this);browserBox.addView(webHost,new LinearLayout.LayoutParams(-1,-1));
+        content.addView(browserBox,new LinearLayout.LayoutParams(-1,0,1));
         panelHost=column();content.addView(panelHost,new LinearLayout.LayoutParams(-1,0,1));
         buildNetwork();buildRepeater();buildConsole();buildElements();buildAnalyze();buildTerminal();buildWorkspace();
-        bottomNav=row();bottomNav.setBackgroundColor(0xff101a2a);
-        for(String name:new String[]{"Browser","Tools","Terminal","Workspace"}){Button b=button(name,()->select(name.equals("Tools")?lastTool:name));tabs.put(name,b);bottomNav.addView(b,new LinearLayout.LayoutParams(0,dp(52),1));}
-        root.addView(bottomNav);status.setPadding(dp(12),0,dp(8),0);root.addView(status,new LinearLayout.LayoutParams(-1,dp(18)));
+
+        bottomNav=row();bottomNav.setPadding(dp(4),dp(1),dp(4),0);bottomNav.setBackgroundColor(0xff111a27);
+        String[] names={"Browser","Tools","Terminal","Workspace"};
+        String[] symbols={"⌂","⌘","›_","▤"};
+        for(int i=0;i<names.length;i++){
+            final String name=names[i];
+            LinearLayout destination=column();destination.setGravity(Gravity.CENTER);
+            TextView symbol=label(symbols[i],18,MUTED);symbol.setGravity(Gravity.CENTER);
+            destination.addView(symbol,new LinearLayout.LayoutParams(-1,dp(23)));
+            Button b=button(name,()->select(name.equals("Tools")?lastTool:name));b.setTextSize(11);
+            b.setPadding(0,0,0,0);b.setBackgroundColor(Color.TRANSPARENT);
+            destination.addView(b,new LinearLayout.LayoutParams(-1,dp(32)));
+            symbol.setOnClickListener(v->b.performClick());tabs.put(name,b);
+            bottomNav.addView(destination,new LinearLayout.LayoutParams(0,dp(58),1));
+        }
+        root.addView(bottomNav);status.setPadding(dp(12),0,dp(8),0);
+        root.addView(status,new LinearLayout.LayoutParams(-1,dp(18)));
         setContentView(root);newTab(null);root.requestFocus();
     }
-    private Button icon(String glyph,String description,Runnable action){Button b=button(glyph,action);b.setTextSize(22);b.setContentDescription(description);b.setBackgroundColor(Color.TRANSPARENT);b.setPadding(0,0,0,0);b.setLayoutParams(new LinearLayout.LayoutParams(dp(44),dp(48)));return b;}
+    private Button icon(String glyph,String description,Runnable action){Button b=button(glyph,action);b.setTextSize(21);b.setContentDescription(description);b.setBackgroundColor(Color.TRANSPARENT);b.setPadding(0,0,0,0);b.setLayoutParams(new LinearLayout.LayoutParams(dp(40),dp(46)));return b;}
     @SuppressLint("SetJavaScriptEnabled") private WebView createWeb(BrowserTab tab){
         WebView web;
         web=new WebView(this);web.setBackgroundColor(BG);web.getSettings().setJavaScriptEnabled(true);web.getSettings().setDomStorageEnabled(true);
@@ -217,9 +255,18 @@ public final class MainActivity extends Activity {
         consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));renderNetwork();renderTabs();
     }
     private void renderTabs(){
-        siteTabs.removeAllViews();for(BrowserTab tab:browserTabs){LinearLayout chip=row();chip.setBackground(box(tab==activeTab?CARD:BG));
-            TextView title=label(tab.title,12,tab==activeTab?INK:MUTED);title.setSingleLine(true);title.setEllipsize(android.text.TextUtils.TruncateAt.END);title.setContentDescription("Switch tab "+tab.title);title.setOnClickListener(v->activateTab(tab));
-            chip.addView(title,new LinearLayout.LayoutParams(dp(100),dp(40)));Button close=icon("×","Close tab "+tab.title,()->closeTab(tab));chip.addView(close,new LinearLayout.LayoutParams(dp(36),dp(40)));siteTabs.addView(chip);}
+        if(tabCounter!=null)tabCounter.setText(String.valueOf(browserTabs.size()));
+        siteTabs.removeAllViews();
+        for(BrowserTab tab:browserTabs){
+            LinearLayout chip=row();chip.setBackground(box(tab==activeTab?0xff263b57:0xff111a27));
+            TextView title=label(tab.title,12,tab==activeTab?INK:MUTED);
+            title.setSingleLine(true);title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            title.setContentDescription("Switch tab "+tab.title);
+            title.setOnClickListener(v->activateTab(tab));
+            chip.addView(title,new LinearLayout.LayoutParams(dp(114),dp(40)));
+            Button close=icon("×","Close tab "+tab.title,()->closeTab(tab));
+            chip.addView(close,new LinearLayout.LayoutParams(dp(34),dp(40)));siteTabs.addView(chip);
+        }
     }
     private void closeTab(BrowserTab tab){
         if(!browserTabs.contains(tab))return;boolean active=tab==activeTab;browserTabs.remove(tab);
@@ -234,21 +281,30 @@ public final class MainActivity extends Activity {
         case 5:select("Workspace");break;}
     }).show();}
     private void select(String name) {
-        root.getChildAt(0).setVisibility(name.equals("Terminal")||name.equals("Workspace")?View.GONE:View.VISIBLE);
+        selected=name;
+        boolean browser=name.equals("Browser");
+        boolean tool=tabs.containsKey(name)&&!name.equals("Terminal")&&!name.equals("Workspace")&&!browser;
+        if(tool)lastTool=name;
+        tabLine.setVisibility(browser&&tabsExpanded?View.VISIBLE:View.GONE);
         root.getChildAt(1).setVisibility(name.equals("Terminal")||name.equals("Workspace")?View.GONE:View.VISIBLE);
         loading.setVisibility(View.INVISIBLE);
-        selected=name;boolean browser=name.equals("Browser"),tool=tabs.containsKey(name)&&!name.equals("Terminal")&&!name.equals("Workspace")&&!browser;
-        if(tool)lastTool=name;
-        navigationScroll.setVisibility(tool?View.VISIBLE:View.GONE);toolHeader.setVisibility(tool?View.VISIBLE:View.GONE);
+        navigationScroll.setVisibility(tool?View.VISIBLE:View.GONE);
+        toolHeader.setVisibility(tool?View.VISIBLE:View.GONE);
         boolean split=tool&&splitTools;
-        browserBox.setVisibility(browser||split?View.VISIBLE:View.GONE);panelHost.setVisibility(browser?View.GONE:View.VISIBLE);
+        browserBox.setVisibility(browser||split?View.VISIBLE:View.GONE);
+        panelHost.setVisibility(browser?View.GONE:View.VISIBLE);
         boolean landscape=getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-        if(landscape&&tool){root.getChildAt(0).setVisibility(View.GONE);root.getChildAt(1).setVisibility(View.GONE);}
+        if(landscape&&tool){tabLine.setVisibility(View.GONE);root.getChildAt(1).setVisibility(View.GONE);}
         content.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
         browserBox.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,browser?1:0.4f));
         panelHost.setLayoutParams(new LinearLayout.LayoutParams(landscape?0:-1,landscape?-1:0,0.6f));
-        panelHost.removeAllViews();View panel=panels.get(name);if(panel!=null)panelHost.addView(panel,new LinearLayout.LayoutParams(-1,-1));
-        for(Map.Entry<String,Button> entry:tabs.entrySet()){boolean active=entry.getKey().equals(name)||(tool&&entry.getKey().equals("Tools"));entry.getValue().setTextColor(active?ACCENT:MUTED);entry.getValue().setBackgroundColor(active?CARD:Color.TRANSPARENT);}
+        panelHost.removeAllViews();View panel=panels.get(name);
+        if(panel!=null)panelHost.addView(panel,new LinearLayout.LayoutParams(-1,-1));
+        for(Map.Entry<String,Button> entry:tabs.entrySet()){
+            boolean active=entry.getKey().equals(name)||(tool&&entry.getKey().equals("Tools"));
+            entry.getValue().setTextColor(active?ACCENT:MUTED);
+            entry.getValue().setBackgroundColor(active?0xff203049:Color.TRANSPARENT);
+        }
         if(name.equals("Network"))renderNetwork();
         if(status!=null)status.setText(name+" · "+(activeTab==null?"":activeTab.title));
     }
