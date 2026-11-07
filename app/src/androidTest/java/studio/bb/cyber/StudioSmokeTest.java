@@ -51,18 +51,18 @@ public class StudioSmokeTest {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitFor(scenario,"observed requests");screenshot("00-start");
             scenario.onActivity(a->a.openLab());Thread.sleep(700);waitFor(scenario,"observed requests");screenshot("01-browser");
-            tap(scenario,"Console");tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");screenshot("02-console");
+            tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"BB · Local lab");screenshot("02-console");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
             Thread.sleep(1200);InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-            tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");screenshot("02-console-landscape");
+            tap(scenario,"Run");waitFor(scenario,"BB · Local lab");screenshot("02-console-landscape");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT));
             Thread.sleep(1200);InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-            tap(scenario,"Repeater");tap(scenario,"Send request");waitFor(scenario,"HTTP 200");screenshot("03-repeater");
+            tap(scenario,"Repeater");tap(scenario,"Send");waitFor(scenario,"HTTP 200");screenshot("03-repeater");
             tap(scenario,"Network");screenshot("04-network");
             tap(scenario,"Elements");tap(scenario,"Inspect");waitFor(scenario,"<h1>");
-            tap(scenario,"Analyze");tap(scenario,"Page map");waitFor(scenario,"secureContext");screenshot("05-analysis");
+            scenario.onActivity(a->a.openAnalyze());tap(scenario,"Page map");waitFor(scenario,"secureContext");screenshot("05-analysis");
             tap(scenario,"Review headers");waitFor(scenario,"HEADER REVIEW");
-            tap(scenario,"Terminal");waitFor(scenario,"LOCAL SHELL");
+            tap(scenario,"Terminal");waitFor(scenario,"SANDBOX SHELL");
             scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("printf 'BB_%s_OK\\n' SHELL");});
             tap(scenario,"Run");waitFor(scenario,"BB_SHELL_OK");screenshot("06-terminal");
             scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("cd /; pwd");});
@@ -70,14 +70,42 @@ public class StudioSmokeTest {
             scenario.onActivity(a->{EditText input=(EditText)findDescription(a.getWindow().getDecorView(),"Enter shell command");input.setText("printf 'CWD=%s\\n' \"$PWD\"");});
             tap(scenario,"Run");waitFor(scenario,"CWD=/");
             tap(scenario,"Browser");
-            scenario.onActivity(a->{View plus=findDescription(a.getWindow().getDecorView(),"New tab");assertNotNull(plus);plus.performClick();});
-            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Evaluate");waitFor(scenario,"New tab");Thread.sleep(300);
+            scenario.onActivity(a->{View toggle=findDescription(a.getWindow().getDecorView(),"Show tabs");assertNotNull(toggle);toggle.performClick();View plus=findDescription(a.getWindow().getDecorView(),"New tab");assertNotNull(plus);assertTrue(plus.isShown());plus.performClick();});
+            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"New tab");Thread.sleep(300);
             scenario.onActivity(a->{TextView out=(TextView)findDescription(a.getWindow().getDecorView(),"Console output");assertTrue(out.getText().toString().contains("New tab"));assertFalse(out.getText().toString().contains("BB · Local lab"));});screenshot("07-tabs");
             scenario.onActivity(a->{View old=findDescription(a.getWindow().getDecorView(),"Switch tab BB · Local lab");assertNotNull(old);old.performClick();});
-            tap(scenario,"Evaluate");waitFor(scenario,"BB · Local lab");
-            tap(scenario,"Workspace");tap(scenario,"Save request");tap(scenario,"Load request");waitFor(scenario,"Request workbench");
+            tap(scenario,"Run");waitFor(scenario,"BB · Local lab");
+            scenario.onActivity(a->a.openWorkspace());tap(scenario,"Save request");tap(scenario,"Load request");waitFor(scenario,"HTTP Repeater");
         }
     }
+    @Test public void compactConsoleCopiesAndBrowserStaysAliveBehindTools() throws Exception {
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(a->{
+                ViewGroup tree=a.findViewById(android.R.id.content);
+                View tools=find(tree,"Tools",true);
+                assertNotNull(tools);tools.performClick();
+                View console=find(tree,"Console",true);
+                assertNotNull(console);console.performClick();
+                View run=find(tree,"Run",true);View copy=find(tree,"Copy output",true);
+                assertNotNull(run);assertNotNull(copy);
+                assertTrue(run.isShown());assertTrue(copy.isShown());
+                assertNull("Verbose console controls should be in overflow",find(tree,"Clear logs",true));
+                assertNull("Verbose console controls should be in overflow",find(tree,"Reload page",true));
+                View browser=find(tree,"Browser",true);
+                assertNotNull(browser);assertTrue(browser.isShown());
+                View sheet=find(tree,"JavaScript Console",false);
+                assertNotNull(sheet);assertTrue(sheet.isShown());
+            });
+            scenario.onActivity(a->a.openWorkspace());
+            scenario.onActivity(a->{
+                View saved=find(a.getWindow().getDecorView(),"Saved Request",false);
+                assertNotNull(saved);assertTrue(saved.isShown());
+                assertNull("Workspace must no longer be a bottom navigation destination",
+                    find(a.getWindow().getDecorView(),"Workspace",true));
+            });
+        }
+    }
+
     @Test public void englishChromeRemainsLtrWithArabicConfiguration() throws Exception {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.content.res.Configuration previous=new android.content.res.Configuration(context.getResources().getConfiguration());
