@@ -89,7 +89,7 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         buildUi();
-        TermuxResultReceiver.listener=result->runOnUiThread(()->{if(!destroyed)terminalOutput.setText(result);});
+        TermuxResultReceiver.listener=result->runOnUiThread(()->{if(!destroyed)appendTerminal("\n"+result+"\n");});
         if(!TermuxResultReceiver.lastResult.isEmpty())appendTerminal(TermuxResultReceiver.lastResult);
         http.execute(()->{try {
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();
@@ -684,31 +684,65 @@ public final class MainActivity extends Activity {
     private void addTabLog(BrowserTab tab,String message){if(message.length()>8000)message=message.substring(0,8000);if(tab.logs.size()>=200)tab.logs.remove(0);tab.logs.add(message);if(tab==activeTab&&consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",tab.logs));}
     private void addLog(String message){if(message.length()>8000)message=message.substring(0,8000)+"\n[Truncated]";if(logs.size()>=200)logs.remove(0);logs.add(message);if(consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));}
     private void buildElements(){
-        LinearLayout body=panel("Elements","DOM inspector","Read an element snapshot or change an inline style. Top-level document only; changes disappear on reload.");
-        EditText selector=edit("CSS selector",1);selector.setText("h1");body.addView(selector);
-        EditText property=edit("CSS property",1);property.setText("color");body.addView(property);EditText value=edit("CSS value",1);value.setText("#52e0c4");body.addView(value);
-        actions(body,button("Inspect",()->{
+        LinearLayout body=panel("Elements","Elements · DOM","Inspect the HTML structure of the active page.");
+        body.addView(label("Find a page element using a CSS selector. Examples: h1, button, #menu or .product.",12,MUTED));
+        EditText selector=edit("CSS selector, e.g. h1",1);
+        selector.setText("h1");body.addView(selector);
+        Button inspect=button("Inspect HTML",()->{
             String script="(function(){try{var e=document.querySelector("+JSONObject.quote(selector.getText().toString())+");if(!e)return 'No matching element';return e.outerHTML.slice(0,50000);}catch(e){return e.message;}})()";
-            web.evaluateJavascript(script,r->{try{elementsOutput.setText(String.valueOf(new JSONTokener(r).nextValue()));}catch(Exception e){elementsOutput.setText(r);}});
-        }),button("Apply style",()->{
-            String script="(function(){try{var e=document.querySelector("+JSONObject.quote(selector.getText().toString())+");if(!e)return 'No matching element';e.style.setProperty("+JSONObject.quote(property.getText().toString())+","+JSONObject.quote(value.getText().toString())+");return e.getAttribute('style');}catch(e){return e.message;}})()";
-            web.evaluateJavascript(script,r->elementsOutput.setText(r));
-        }));elementsOutput=output("Enter a CSS selector, then Inspect.");body.addView(elementsOutput);
+            web.evaluateJavascript(script,r->{
+                try{elementsOutput.setText(String.valueOf(new JSONTokener(r).nextValue()));}
+                catch(Exception e){elementsOutput.setText(r);}
+            });
+        });
+        inspect.setTextColor(0xff0b1d32);inspect.setBackground(box(ACCENT));
+        actions(body,inspect,button("Copy HTML",()->{
+            String value=elementsOutput.getText().toString();
+            if(value.equals("Inspect an element to see its HTML.")||value.trim().isEmpty()){
+                toast("Inspect an element first.");return;
+            }
+            copy(value);
+        }));
+        elementsOutput=output("Inspect an element to see its HTML.");
+        elementsOutput.setTextIsSelectable(true);elementsOutput.setContentDescription("Inspected HTML output");
+        body.addView(elementsOutput);
+        body.addView(label("CSS editing is temporary and changes only the WebView on your phone.",11,MUTED));
+        LinearLayout cssEditor=column();
+        EditText property=edit("CSS property, e.g. color",1);property.setText("color");
+        EditText value=edit("CSS value, e.g. #75acfa",1);value.setText("#75acfa");
+        cssEditor.addView(property);cssEditor.addView(value);
+        cssEditor.addView(button("Apply CSS",()->{
+            String key=property.getText().toString().trim();
+            if(!key.matches("[-a-zA-Z0-9]+")){toast("Enter a valid CSS property name.");return;}
+            String script="(function(){try{var e=document.querySelector("+JSONObject.quote(selector.getText().toString())+");if(!e)return 'No matching element';e.style.setProperty("+JSONObject.quote(key)+","+JSONObject.quote(value.getText().toString())+");return e.outerHTML.slice(0,50000);}catch(e){return e.message;}})()";
+            web.evaluateJavascript(script,r->{
+                try{elementsOutput.setText(String.valueOf(new JSONTokener(r).nextValue()));}
+                catch(Exception e){elementsOutput.setText(r);}
+            });
+        }));
+        cssEditor.setVisibility(View.GONE);
+        body.addView(button("Edit CSS ▾",()->{
+            cssEditor.setVisibility(cssEditor.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);
+        }));
+        body.addView(cssEditor);
     }
     private void buildTerminal(){
-        LinearLayout body=column();body.setPadding(dp(12),dp(3),dp(12),dp(6));
-        body.setBackgroundColor(0xff0b111b);panels.put("Terminal",body);
+        LinearLayout body=column();body.setPadding(dp(12),dp(6),dp(12),dp(6));
+        body.setBackgroundColor(0xff0c1420);panels.put("Terminal",body);
         LinearLayout top=row();
-        TextView title=label("Local Android shell",14,INK);title.setTypeface(null,Typeface.BOLD);
+        TextView title=label("Terminal",17,INK);title.setTypeface(null,Typeface.BOLD);
         top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        top.addView(button("Termux",()->new AlertDialog.Builder(this).setTitle("Termux")
-            .setItems(new String[]{"Open Termux","Run input in Termux","Connection setup"},(d,n)->{
-                if(n==0)openTermux();else if(n==1)runTermux();else termuxSetup();
-            }).show()));
-        body.addView(top);
-        TextView hint=label("SANDBOX SHELL  ·  NO ROOT / PYTHON PACKAGES",10,MUTED);body.addView(hint);
-        terminalOutput=output("BB Cyber Studio local shell\n\nCommands run inside the Android app sandbox. For a full Linux toolchain, connect Termux from the menu.\n\n");
-        terminalOutput.setTextSize(12);terminalOutput.setBackgroundColor(0xff0b111b);
+        terminalModeButton=button("Android ▾",()->{
+            useTermuxShell=!useTermuxShell;
+            terminalModeButton.setText(useTermuxShell?"Termux ▾":"Android ▾");
+            appendTerminal(useTermuxShell
+                ?"\n[Termux mode] Runs through the separate Termux app with permission. Results arrive on completion. Use ⋮ > Termux setup if needed.\n"
+                :"\n[Android mode] Local app sandbox shell: no pkg, apt, pip or Linux packages.\n");
+        });
+        top.addView(terminalModeButton);body.addView(top);
+        body.addView(label("ANDROID SHELL / TERMUX CONNECTION · SELECT MODE ABOVE",11,MUTED));
+        terminalOutput=output("BB Cyber Studio\n\nAndroid mode runs system shell commands inside the app sandbox, not Linux packages. Switch to Termux for pkg, Python and other Termux-installed tools.\n\n");
+        terminalOutput.setTextSize(12);terminalOutput.setBackgroundColor(0xff0c1420);
         terminalOutput.setContentDescription("Terminal output");
         terminalScroll=new ScrollView(this);terminalScroll.setFillViewport(true);
         terminalScroll.addView(terminalOutput);body.addView(terminalScroll,new LinearLayout.LayoutParams(-1,0,1));
@@ -717,7 +751,7 @@ public final class MainActivity extends Activity {
         extras.addView(button("↓",()->terminalHistory(1)));
         extras.addView(button("Copy",()->copy(terminalOutput.getText().toString())));
         extras.addView(button("Stop",()->{
-            if(localShell!=null){localShell.close();localShell=null;appendTerminal("\n[Session stopped]\n");}
+            if(localShell!=null){localShell.close();localShell=null;appendTerminal("\n[Local session stopped]\n");}
         }));
         body.addView(extras);
         LinearLayout input=row();input.addView(label("$",18,ACCENT));
@@ -731,8 +765,29 @@ public final class MainActivity extends Activity {
     }
     private void appendTerminal(String text){if(destroyed)return;String all=terminalOutput.getText()+text;if(all.length()>100000)all=all.substring(all.length()-100000);terminalOutput.setText(all);terminalScroll.post(()->terminalScroll.fullScroll(View.FOCUS_DOWN));}
     private void startLocalShell(){if(localShell!=null)localShell.close();try{localShell=new LocalShell(getFilesDir(),text->runOnUiThread(()->appendTerminal(text)));appendTerminal("\n[New local session]\n");}catch(Exception e){appendTerminal("\n"+e.getMessage()+"\n");}}
-    private void sendLocalCommand(){String command=commandInput.getText().toString();if(command.trim().isEmpty())return;if(command.length()>4096){toast("Local command limit: 4096 characters.");return;}if(localShell==null)startLocalShell();if(localShell==null)return;
-        try{localShell.send(command);commandHistory.add(command);if(commandHistory.size()>100)commandHistory.remove(0);historyIndex=commandHistory.size();appendTerminal("$ "+command+"\n");commandInput.setText("");}catch(Exception e){appendTerminal(e.getMessage()+"\n");}
+    private void sendLocalCommand(){
+        String command=commandInput.getText().toString().trim();
+        if(command.isEmpty())return;
+        if(command.length()>4096){toast("Command limit: 4096 characters.");return;}
+        if(useTermuxShell){runTermux();return;}
+        if(command.matches("(?s)^(pkg|apt|apt-get)(\\s+.*)?$")){
+            new AlertDialog.Builder(this)
+                .setTitle("This is the Android shell")
+                .setMessage("pkg and apt work in Termux, not Android's /system/bin/sh. Switch to Termux mode to run the command in your installed Termux environment.")
+                .setNegativeButton("Keep Android",null)
+                .setPositiveButton("Switch to Termux",(d,w)->{
+                    useTermuxShell=true;terminalModeButton.setText("Termux ▾");
+                    appendTerminal("\n[Termux mode selected. Review the command then tap Run.]\n");
+                }).show();
+            return;
+        }
+        if(localShell==null)startLocalShell();if(localShell==null)return;
+        try{
+            localShell.send(command);commandHistory.add(command);
+            if(commandHistory.size()>100)commandHistory.remove(0);
+            historyIndex=commandHistory.size();
+            appendTerminal("$ "+command+"\n");commandInput.setText("");
+        }catch(Exception e){appendTerminal(e.getMessage()+"\n");}
     }
     private void terminalHistory(int change){historyIndex=Math.max(0,Math.min(commandHistory.size(),historyIndex+change));commandInput.setText(historyIndex==commandHistory.size()?"":commandHistory.get(historyIndex));commandInput.setSelection(commandInput.length());}
     private void insertCommand(String text){int at=Math.max(0,commandInput.getSelectionStart());commandInput.getText().insert(at,text);commandInput.requestFocus();}
@@ -768,15 +823,15 @@ public final class MainActivity extends Activity {
                 if(Build.VERSION.SDK_INT>=31)flags|=PendingIntent.FLAG_MUTABLE;
                 PendingIntent pending=PendingIntent.getBroadcast(this,pendingId,callback,flags);
                 Intent intent=new Intent("com.termux.RUN_COMMAND");intent.setClassName("com.termux","com.termux.app.RunCommandService");
-                intent.putExtra("com.termux.RUN_COMMAND_PATH","$PREFIX/bin/bash");
+                intent.putExtra("com.termux.RUN_COMMAND_PATH","/data/data/com.termux/files/usr/bin/bash");
                 intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS",new String[]{"-lc",command});
-                intent.putExtra("com.termux.RUN_COMMAND_WORKDIR","~/");
+                intent.putExtra("com.termux.RUN_COMMAND_WORKDIR","/data/data/com.termux/files/home");
                 intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND",true);intent.putExtra("com.termux.RUN_COMMAND_PENDING_INTENT",pending);
                 intent.putExtra("com.termux.RUN_COMMAND_COMMAND_LABEL","BB Cyber Studio");
                 android.content.ComponentName started=startService(intent);
                 if(started==null)throw new IllegalStateException("Termux service not available");
-                terminalOutput.setText("Running… output arrives after completion.\nIf no result arrives, check Setup and Termux permissions.");
-            }catch(Exception e){terminalOutput.setText("Could not start Termux: "+e.getMessage()+"\nOpen Setup for connection instructions.");}
+                appendTerminal("\n[Termux] Executing: "+command+"\nOutput arrives after completion.\n");
+            }catch(Exception e){appendTerminal("\nCould not start Termux: "+e.getMessage()+"\nOpen Setup for connection instructions.\n");}
         });
     }
     private void buildWorkspace(){
