@@ -103,7 +103,7 @@ public final class MainActivity extends Activity {
     private int dp(int value) { return Math.round(value*getResources().getDisplayMetrics().density); }
     private LinearLayout column() { LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);return v; }
     private LinearLayout row() { LinearLayout v=new LinearLayout(this);v.setGravity(Gravity.CENTER_VERTICAL);return v; }
-    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(14));d.setStroke(dp(1),0xff2a3b50);return d; }
+    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));d.setStroke(dp(1),0xff2c415d);return d; }
     private TextView label(String value,int size,int color) {
         TextView v=new TextView(this);v.setText(value);v.setTextSize(size);v.setTextColor(color);v.setPadding(dp(4),dp(5),dp(4),dp(5));return v;
     }
@@ -126,8 +126,8 @@ public final class MainActivity extends Activity {
         LinearLayout line=row();for(Button b:buttons)line.addView(b);scroller.addView(line);parent.addView(scroller);
     }
     private LinearLayout panel(String name,String title,String caption) {
-        LinearLayout body=column();body.setPadding(dp(12),dp(8),dp(12),dp(18));
-        TextView heading=label(title,16,INK);heading.setTypeface(null,Typeface.BOLD);
+        LinearLayout body=column();body.setPadding(dp(16),dp(14),dp(16),dp(22));
+        TextView heading=label(title,18,INK);heading.setTypeface(null,Typeface.BOLD);
         body.addView(heading);
         String hint=caption;
         if(name.equals("Network"))hint="Live request metadata · statuses and response bodies need interception";
@@ -180,8 +180,9 @@ public final class MainActivity extends Activity {
         toolsSheet=column();toolsSheet.setBackground(sheetBackground());toolsSheet.setElevation(dp(12));
         toolsSheet.setClipToOutline(true);
         LinearLayout grab=row();grab.setGravity(Gravity.CENTER);
-        TextView handle=label("━━",13,0xff71849c);handle.setGravity(Gravity.CENTER);
-        grab.addView(handle,new LinearLayout.LayoutParams(-1,dp(18)));toolsSheet.addView(grab);
+        View handle=new View(this);handle.setBackground(box(0xff58708d));
+        grab.addView(handle,new LinearLayout.LayoutParams(dp(42),dp(5)));
+        toolsSheet.addView(grab,new LinearLayout.LayoutParams(-1,dp(19)));
         toolHeader=row();toolHeader.setPadding(dp(12),0,dp(8),0);
         sheetLabel=label("DEVTOOLS",12,INK);sheetLabel.setTypeface(null,Typeface.BOLD);
         toolHeader.addView(sheetLabel,new LinearLayout.LayoutParams(0,-2,1));
@@ -363,7 +364,7 @@ public final class MainActivity extends Activity {
         tabLine.setVisibility(browser&&tabsExpanded?View.VISIBLE:View.GONE);
         urlBar.setVisibility(terminal||workspace?View.GONE:View.VISIBLE);
         navigationScroll.setVisibility(tool?View.VISIBLE:View.GONE);
-        sheetLabel.setText(terminal?"TERMINAL":workspace?"SAVED REQUESTS":name.toUpperCase(java.util.Locale.US));
+        sheetLabel.setText(terminal?"TERMINAL":workspace?"SAVED REQUESTS":"DEVELOPER TOOLS");
         toolsSheet.setVisibility(browser?View.GONE:View.VISIBLE);
         // Keep WebView alive below the sheet. The keyboard may resize the stage.
         updateSheetHeight();
@@ -376,7 +377,7 @@ public final class MainActivity extends Activity {
             ImageView destinationIcon=destinationIcons.get(key);
             if(destinationIcon!=null)destinationIcon.setColorFilter(active?ACCENT:MUTED);
             if(!key.equals("Browser")&&!key.equals("Tools")&&!key.equals("Terminal"))
-                entry.getValue().setBackgroundColor(active?0xff26374b:Color.TRANSPARENT);
+                entry.getValue().setBackground(box(active?0xff243e60:0xff111925));
         }
         if(name.equals("Network"))renderNetwork();
         status.setText(name+" · "+(activeTab==null?"":activeTab.title));
