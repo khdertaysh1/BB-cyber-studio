@@ -58,6 +58,7 @@ public final class MainActivity extends Activity {
     private TextView networkSummary;
     private final Map<String,View> panels=new LinkedHashMap<>();
     private final Map<String,Button> tabs=new LinkedHashMap<>();
+    private final Map<String,ImageView> destinationIcons=new LinkedHashMap<>();
     private ArrayList<Capture> captures=new ArrayList<>();
     private ArrayList<String> logs=new ArrayList<>();
     private final ExecutorService http=Executors.newSingleThreadExecutor();
@@ -183,12 +184,14 @@ public final class MainActivity extends Activity {
 
         bottomNav=row();bottomNav.setPadding(dp(4),dp(1),dp(4),0);bottomNav.setBackgroundColor(0xff111a27);
         String[] names={"Browser","Tools","Terminal","Workspace"};
-        String[] symbols={"⌂","⌘","›_","▤"};
+        int[] symbols={R.drawable.ic_nav_browser,R.drawable.ic_nav_tools,R.drawable.ic_nav_terminal,R.drawable.ic_nav_workspace};
         for(int i=0;i<names.length;i++){
             final String name=names[i];
             LinearLayout destination=column();destination.setGravity(Gravity.CENTER);
-            TextView symbol=label(symbols[i],18,MUTED);symbol.setGravity(Gravity.CENTER);
-            destination.addView(symbol,new LinearLayout.LayoutParams(-1,dp(23)));
+            ImageView symbol=new ImageView(this);symbol.setImageResource(symbols[i]);symbol.setColorFilter(MUTED);
+            LinearLayout.LayoutParams symbolSize=new LinearLayout.LayoutParams(dp(22),dp(22));
+            symbolSize.gravity=Gravity.CENTER;destination.addView(symbol,symbolSize);
+            destinationIcons.put(name,symbol);
             Button b=button(name,()->select(name.equals("Tools")?lastTool:name));b.setTextSize(11);
             b.setPadding(0,0,0,0);b.setBackgroundColor(Color.TRANSPARENT);
             destination.addView(b,new LinearLayout.LayoutParams(-1,dp(32)));
@@ -304,6 +307,8 @@ public final class MainActivity extends Activity {
             boolean active=entry.getKey().equals(name)||(tool&&entry.getKey().equals("Tools"));
             entry.getValue().setTextColor(active?ACCENT:MUTED);
             entry.getValue().setBackgroundColor(active?0xff203049:Color.TRANSPARENT);
+            ImageView destinationIcon=destinationIcons.get(entry.getKey());
+            if(destinationIcon!=null)destinationIcon.setColorFilter(active?ACCENT:MUTED);
         }
         if(name.equals("Network"))renderNetwork();
         if(status!=null)status.setText(name+" · "+(activeTab==null?"":activeTab.title));
