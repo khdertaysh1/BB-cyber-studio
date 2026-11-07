@@ -51,7 +51,16 @@ public class StudioSmokeTest {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitFor(scenario,"observed requests");screenshot("00-start");
             scenario.onActivity(a->a.openLab());Thread.sleep(700);waitFor(scenario,"observed requests");screenshot("01-browser");
-            tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"BB · Local lab");screenshot("02-console");
+            tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"BB · Local lab");
+            tap(scenario,"Copy output");
+            scenario.onActivity(activity->{
+                android.content.ClipboardManager clipboard=(android.content.ClipboardManager)
+                    activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                android.content.ClipData data=clipboard.getPrimaryClip();
+                assertNotNull("Copy output must populate the clipboard",data);
+                assertTrue(data.getItemAt(0).coerceToText(activity).toString().contains("BB · Local lab"));
+            });
+            screenshot("02-console");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
             Thread.sleep(1200);InstrumentationRegistry.getInstrumentation().waitForIdleSync();
             tap(scenario,"Run");waitFor(scenario,"BB · Local lab");screenshot("02-console-landscape");
