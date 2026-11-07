@@ -440,8 +440,8 @@ public final class MainActivity extends Activity {
             record.setText(captureEnabled?"●  Recording":"○  Paused");
             record.setTextColor(captureEnabled?0xfff18b91:MUTED);
         });
-        toolbar.addView(record);toolbar.addView(button("Clear",()->{captures.clear();renderNetwork();}));
-        toolbar.addView(button("Reload",()->{if(web!=null)web.reload();}));
+        toolbar.addView(record);
+        toolbar.addView(label("Clear / reload in ⋮ menu",10,MUTED));
         body.addView(toolbar);
 
         networkFilter=edit("Filter URLs, methods or hostnames",1);
@@ -554,7 +554,11 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);scroll.addView(view);
         details.addView(scroll,new LinearLayout.LayoutParams(-1,dp(260)));
         new AlertDialog.Builder(this).setTitle("Request details").setView(details)
-            .setNegativeButton("Close",null).setPositiveButton("To Repeater",(d,w)->{
+            .setNegativeButton("Close",null)
+            .setNeutralButton("Copy headers",(d,w)->confirm("Copy request metadata?",
+                "Request headers may contain private tokens. Review the clipboard before sharing.",
+                ()->copy(capture.method+" "+capture.url+"\n"+headersText(capture.headers,false))))
+            .setPositiveButton("To Repeater",(d,w)->{
                 requestUrl.setText(capture.url);requestHeaders.setText(headersText(capture.headers,true));
                 requestBody.setText("");chooseMethod(capture.method);
                 repeaterNotice.setText("Imported observed metadata only. Original POST body, cookies and browser responses are unavailable.");
@@ -664,16 +668,38 @@ public final class MainActivity extends Activity {
         }));elementsOutput=output("Enter a CSS selector, then Inspect.");body.addView(elementsOutput);
     }
     private void buildTerminal(){
-        LinearLayout body=column();body.setPadding(dp(12),0,dp(12),dp(4));body.setBackgroundColor(0xff080d15);panels.put("Terminal",body);
-        LinearLayout top=row();TextView title=label("›_  Terminal",16,INK);top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        top.addView(button("New session",this::startLocalShell));top.addView(button("Termux",()->new AlertDialog.Builder(this).setTitle("Termux integration").setItems(new String[]{"Open interactive Termux","Run input in Termux","Connection setup"},(d,n)->{if(n==0)openTermux();else if(n==1)runTermux();else termuxSetup();}).show()));body.addView(top);
-        body.addView(label("LOCAL SHELL  ·  Android sandbox  ·  live output",10,ACCENT));
-        terminalOutput=output("BB Cyber Studio / local shell\n\nA persistent Android shell in this app's private folder.\nSupports cd, pipes and Android commands.\nNo root, pkg, Python or interactive TUI is bundled.\nUse Termux above for your full Linux environment.\n\nType a command below to start.\n");terminalOutput.setBackgroundColor(0xff080d15);terminalOutput.setTextSize(13);terminalOutput.setPadding(0,dp(12),0,dp(12));
-        terminalScroll=new ScrollView(this);terminalScroll.setFillViewport(true);terminalScroll.addView(terminalOutput);body.addView(terminalScroll,new LinearLayout.LayoutParams(-1,0,1));
-        actions(body,button("↑",()->terminalHistory(-1)),button("↓",()->terminalHistory(1)),button("/",()->insertCommand("/")),button("-",()->insertCommand("-")),button("|",()->insertCommand("|")),button("Clear",()->terminalOutput.setText("")),button("Stop",()->{if(localShell!=null){localShell.close();localShell=null;appendTerminal("\n[Session stopped]\n");}}));
-        LinearLayout input=row();input.addView(label("$",18,ACCENT));commandInput=edit("Enter shell command",1);commandInput.setTypeface(Typeface.MONOSPACE);commandInput.setImeOptions(EditorInfo.IME_ACTION_SEND);
-        commandInput.setOnEditorActionListener((v,action,event)->{if(action==EditorInfo.IME_ACTION_SEND){sendLocalCommand();return true;}return false;});
-        input.addView(commandInput,new LinearLayout.LayoutParams(0,-2,1));input.addView(button("Run",this::sendLocalCommand));body.addView(input);
+        LinearLayout body=column();body.setPadding(dp(12),dp(3),dp(12),dp(6));
+        body.setBackgroundColor(0xff0b111b);panels.put("Terminal",body);
+        LinearLayout top=row();
+        TextView title=label("Local Android shell",14,INK);title.setTypeface(null,Typeface.BOLD);
+        top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        top.addView(button("Termux",()->new AlertDialog.Builder(this).setTitle("Termux")
+            .setItems(new String[]{"Open Termux","Run input in Termux","Connection setup"},(d,n)->{
+                if(n==0)openTermux();else if(n==1)runTermux();else termuxSetup();
+            }).show()));
+        body.addView(top);
+        TextView hint=label("SANDBOX SHELL  ·  NO ROOT / PYTHON PACKAGES",10,MUTED);body.addView(hint);
+        terminalOutput=output("BB Cyber Studio local shell\n\nCommands run inside the Android app sandbox. For a full Linux toolchain, connect Termux from the menu.\n\n");
+        terminalOutput.setTextSize(12);terminalOutput.setBackgroundColor(0xff0b111b);
+        terminalOutput.setContentDescription("Terminal output");
+        terminalScroll=new ScrollView(this);terminalScroll.setFillViewport(true);
+        terminalScroll.addView(terminalOutput);body.addView(terminalScroll,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout extras=row();
+        extras.addView(button("↑",()->terminalHistory(-1)));
+        extras.addView(button("↓",()->terminalHistory(1)));
+        extras.addView(button("Copy",()->copy(terminalOutput.getText().toString())));
+        extras.addView(button("Stop",()->{
+            if(localShell!=null){localShell.close();localShell=null;appendTerminal("\n[Session stopped]\n");}
+        }));
+        body.addView(extras);
+        LinearLayout input=row();input.addView(label("$",18,ACCENT));
+        commandInput=edit("Enter shell command",1);commandInput.setTypeface(Typeface.MONOSPACE);
+        commandInput.setImeOptions(EditorInfo.IME_ACTION_SEND);
+        commandInput.setOnEditorActionListener((v,action,event)->{
+            if(action==EditorInfo.IME_ACTION_SEND){sendLocalCommand();return true;}return false;
+        });
+        input.addView(commandInput,new LinearLayout.LayoutParams(0,-2,1));
+        input.addView(button("Run",this::sendLocalCommand));body.addView(input);
     }
     private void appendTerminal(String text){if(destroyed)return;String all=terminalOutput.getText()+text;if(all.length()>100000)all=all.substring(all.length()-100000);terminalOutput.setText(all);terminalScroll.post(()->terminalScroll.fullScroll(View.FOCUS_DOWN));}
     private void startLocalShell(){if(localShell!=null)localShell.close();try{localShell=new LocalShell(getFilesDir(),text->runOnUiThread(()->appendTerminal(text)));appendTerminal("\n[New local session]\n");}catch(Exception e){appendTerminal("\n"+e.getMessage()+"\n");}}
@@ -726,20 +752,30 @@ public final class MainActivity extends Activity {
         });
     }
     private void buildWorkspace(){
-        LinearLayout body=panel("Workspace","Your workspace","Save one named request locally, encrypted with Android Keystore. Console, terminal output and network history are not saved. Browser cookies/storage persist separately.");
-        projectName=edit("Workspace name",1);projectName.setText("My workspace");body.addView(projectName);
-        actions(body,button("Save request",()->{
-            try{RequestSpec request=spec();JSONObject data=new JSONObject();data.put("name",projectName.getText().toString());data.put("method",request.method);data.put("url",request.url);data.put("headers",requestHeaders.getText().toString());data.put("body",request.body);WorkspaceStore.save(this,data.toString());toast("Request saved on this device (encrypted).");}catch(Exception e){toast("Save failed: "+e.getMessage());}
-        }),button("Load request",()->{
-            try{String content=WorkspaceStore.load(this);if(content==null){toast("No saved workspace.");return;}JSONObject data=new JSONObject(content);projectName.setText(data.getString("name"));chooseMethod(data.getString("method"));requestUrl.setText(data.getString("url"));requestHeaders.setText(data.getString("headers"));requestBody.setText(data.getString("body"));select("Repeater");toast("Request loaded. Review before sending.");}catch(Exception e){toast("Load failed: "+e.getMessage());}
+        LinearLayout body=panel("Workspace","Saved Request",
+            "Store one encrypted HTTP request on this device.");
+        body.addView(label("Keep a request for later. Only the Repeater method, URL, headers and body are stored, encrypted with Android Keystore.",12,MUTED));
+        projectName=edit("Request name",1);projectName.setText("My request");body.addView(projectName);
+        actions(body,button("Save",()->{
+            try{
+                RequestSpec request=spec();JSONObject data=new JSONObject();
+                data.put("name",projectName.getText().toString());
+                data.put("method",request.method);data.put("url",request.url);
+                data.put("headers",requestHeaders.getText().toString());data.put("body",request.body);
+                WorkspaceStore.save(this,data.toString());toast("Request saved (encrypted).");
+            }catch(Exception e){toast("Save failed: "+e.getMessage());}
+        }),button("Load into Repeater",()->{
+            try{
+                String content=WorkspaceStore.load(this);
+                if(content==null){toast("Nothing saved yet.");return;}
+                JSONObject data=new JSONObject(content);
+                projectName.setText(data.getString("name"));chooseMethod(data.getString("method"));
+                requestUrl.setText(data.getString("url"));requestHeaders.setText(data.getString("headers"));
+                requestBody.setText(data.getString("body"));select("Repeater");
+                toast("Loaded. Review headers and body before sending.");
+            }catch(Exception e){toast("Load failed: "+e.getMessage());}
         }));
-        actions(body,button("Delete saved request",()->confirm("Delete workspace?","The saved encrypted request will be removed.",()->{try{WorkspaceStore.delete(this);toast("Saved request deleted.");}catch(Exception e){toast(e.getMessage());}})),button("Clear browser data",()->confirm("Clear browser data?","Stops the page, clears cookies, web storage, cache and history, and removes captured request metadata.",()->{
-            for(BrowserTab tab:browserTabs){tab.view.stopLoading();tab.view.loadUrl("about:blank");tab.view.clearHistory();tab.captures.clear();tab.logs.clear();}CookieManager.getInstance().removeAllCookies(done->CookieManager.getInstance().flush());WebStorage.getInstance().deleteAllData();web.clearCache(true);web.clearHistory();captures.clear();renderNetwork();logs.clear();consoleOutput.setText("");toast("Browser data cleared.");
-        })));
-        body.addView(label("WHAT WORKS",12,ACCENT));body.addView(label("Browser · request metadata · JavaScript console · DOM snapshot/style editor · native HTTP Repeater · response comparison · curl export · Termux command results · encrypted request save · offline local lab.",14,INK));
-        body.addView(label("NEXT MILESTONES",12,ACCENT));body.addView(label("Full HTTP(S) proxy and Intercept, response/body capture, embedded interactive terminal, isolated browser profiles, HAR import/export, WebSocket inspection. These are not included in 0.2.",14,MUTED));
-        body.addView(label("BB Cyber Studio · Between Bytes\nNative Android alpha · no analytics, account or cloud backend.\nRequests go only to destinations you open or send to. Local lab addresses change after restarting the app.",12,MUTED));
-        actions(body,button("Source & issues",()->new AlertDialog.Builder(this).setTitle("GitHub").setMessage("Open the public repository in your browser?").setPositiveButton("Open",(d,w)->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://github.com/khdertaysh1/BB-cyber-studio")))).setNegativeButton("Cancel",null).show()));
+        body.addView(label("To remove saved requests or clear website data, use the ⋮ tool menu. Browser cookies and WebView storage are not saved in this request file.",11,MUTED));
     }
     private void copy(String value){((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("BB Cyber Studio",value));toast("Copied.");}
     private void toast(String message){Toast.makeText(this,message==null?"Unknown error":message,Toast.LENGTH_LONG).show();}
