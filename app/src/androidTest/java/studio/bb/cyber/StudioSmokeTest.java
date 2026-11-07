@@ -38,6 +38,19 @@ public class StudioSmokeTest {
         while(System.currentTimeMillis()<deadline){scenario.onActivity(a->found[0]=contains(a.getWindow().getDecorView(),text));if(found[0])return;Thread.sleep(100);}
         fail("Timed out waiting for "+text);
     }
+    private void waitForConsoleResult(ActivityScenario<MainActivity> scenario,String text) throws Exception {
+        long deadline=System.currentTimeMillis()+10000;boolean[] ready={false};
+        while(System.currentTimeMillis()<deadline){
+            scenario.onActivity(a->{
+                View output=findDescription(a.getWindow().getDecorView(),"Console output");
+                ready[0]=output instanceof TextView &&
+                    ((TextView)output).getText().toString().contains(text);
+            });
+            if(ready[0])return;
+            Thread.sleep(100);
+        }
+        fail("Timed out waiting for Console output: "+text);
+    }
     private void shellCommand(String command) throws Exception {
         android.os.ParcelFileDescriptor pipe=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(command);
         try(java.io.InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(pipe)){byte[] data=new byte[512];while(in.read(data)!=-1){}}
@@ -51,7 +64,7 @@ public class StudioSmokeTest {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitFor(scenario,"observed requests");screenshot("00-start");
             scenario.onActivity(a->a.openLab());Thread.sleep(700);waitFor(scenario,"observed requests");screenshot("01-browser");
-            tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"BB · Local lab");
+            tap(scenario,"Console");tap(scenario,"Run");waitForConsoleResult(scenario,"BB · Local lab");
             tap(scenario,"Copy");
             scenario.onActivity(activity->{
                 android.content.ClipboardManager clipboard=(android.content.ClipboardManager)
@@ -63,7 +76,7 @@ public class StudioSmokeTest {
             screenshot("02-console");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
             Thread.sleep(1200);InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-            tap(scenario,"Run");waitFor(scenario,"BB · Local lab");screenshot("02-console-landscape");
+            tap(scenario,"Run");waitForConsoleResult(scenario,"BB · Local lab");screenshot("02-console-landscape");
             scenario.onActivity(a->a.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT));
             Thread.sleep(1200);InstrumentationRegistry.getInstrumentation().waitForIdleSync();
             tap(scenario,"Repeater");tap(scenario,"Send");waitFor(scenario,"HTTP 200");screenshot("03-repeater");
@@ -85,10 +98,10 @@ public class StudioSmokeTest {
             tap(scenario,"Run");waitFor(scenario,"CWD=/");
             tap(scenario,"Browser");
             scenario.onActivity(a->{View toggle=findDescription(a.getWindow().getDecorView(),"Show tabs");assertNotNull(toggle);toggle.performClick();View plus=findDescription(a.getWindow().getDecorView(),"New tab");assertNotNull(plus);assertTrue(plus.isShown());plus.performClick();});
-            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Run");waitFor(scenario,"New tab");Thread.sleep(300);
+            Thread.sleep(500);tap(scenario,"Console");tap(scenario,"Run");waitForConsoleResult(scenario,"New tab");Thread.sleep(300);
             scenario.onActivity(a->{TextView out=(TextView)findDescription(a.getWindow().getDecorView(),"Console output");assertTrue(out.getText().toString().contains("New tab"));assertFalse(out.getText().toString().contains("BB · Local lab"));});screenshot("07-tabs");
             scenario.onActivity(a->{View old=findDescription(a.getWindow().getDecorView(),"Switch tab BB · Local lab");assertNotNull(old);old.performClick();});
-            tap(scenario,"Run");waitFor(scenario,"BB · Local lab");
+            tap(scenario,"Run");waitForConsoleResult(scenario,"BB · Local lab");
             scenario.onActivity(a->a.openWorkspace());tap(scenario,"Save");tap(scenario,"Load into Repeater");waitFor(scenario,"HTTP Repeater");
         }
     }
