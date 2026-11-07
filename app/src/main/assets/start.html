@@ -1,12 +1,39 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>New tab</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New tab</title>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#e5edf8;font:15px system-ui,sans-serif;padding:44px 24px}
-.badge{display:inline-grid;place-items:center;width:48px;height:48px;border:1px solid #345361;border-radius:15px;color:#52e0c4;font-weight:800;font-size:19px;background:#142137}
-.eyebrow{font-size:10px;letter-spacing:3px;color:#9eafc4;margin:25px 0 12px}h1{font-size:34px;line-height:1.13;letter-spacing:-1.5px;margin:0 0 14px;font-weight:650}p{color:#9eafc4;line-height:1.65;margin:0 0 28px;max-width:340px}
-form{display:flex;border:1px solid #314156;background:#142137;border-radius:16px;padding:6px;margin-bottom:32px}input{min-width:0;flex:1;background:none;border:0;padding:10px;color:#e5edf8;font:14px system-ui;outline:0}button{background:#52e0c4;color:#0b1220;border:0;border-radius:11px;padding:9px 14px;font-size:19px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}a{color:inherit;text-decoration:none;border:1px solid #263850;border-radius:15px;padding:18px 14px;background:#101a2a}a b{display:block;font-size:14px;margin:10px 0 5px}a span{font-size:11px;color:#9eafc4}.icon{font-size:23px;color:#52e0c4}footer{margin-top:32px;border-top:1px solid #263850;padding-top:18px;color:#8294ab;font-size:11px;line-height:1.8}
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#0b1018;color:#edf3fa;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:610px;margin:0 auto;padding:46px 22px 36px}
+.brand{display:flex;align-items:center;gap:12px;color:#acbbce;font-size:11px;letter-spacing:1.4px;font-weight:650}
+.mark{display:grid;place-items:center;background:#21354f;color:#77afff;border:1px solid #355379;width:40px;height:40px;border-radius:13px;font-size:16px;font-weight:850;letter-spacing:0}
+h1{font-weight:700;letter-spacing:-1.6px;font-size:34px;line-height:1.1;margin:53px 0 13px}
+.lead{font-size:14px;line-height:1.6;color:#99acc3;margin:0 0 28px}
+form{display:flex;align-items:center;background:#182435;border:1px solid #2d415a;border-radius:17px;padding:6px 8px 6px 16px;box-shadow:0 5px 18px #0509122e}
+input{flex:1;min-width:0;color:#edf3fa;background:none;border:0;outline:none;font:14px inherit;padding:12px 4px}
+input::placeholder{color:#8294aa}button{border:none;background:#77afff;color:#071320;font-weight:750;padding:10px 16px;border-radius:12px;font-size:15px}
+.headline{margin:38px 0 12px;font-weight:700;color:#e6edf7;font-size:12px;letter-spacing:.2px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+a{display:flex;flex-direction:column;min-height:122px;padding:18px;border:1px solid #26374c;border-radius:18px;background:#131d2b;color:inherit;text-decoration:none}
+a .symbol{font-size:23px;color:#77afff;margin-bottom:13px}a strong{font-size:14px}a small{font-size:11px;color:#96a9c1;margin-top:5px;line-height:1.35}
+footer{border-top:1px solid #202e42;margin-top:40px;padding-top:15px;color:#71869f;font-size:11px;line-height:1.8}
+@media(max-width:340px){main{padding:26px 16px}h1{font-size:28px;margin-top:35px}.quick{gap:8px}a{padding:12px}}
 </style>
-<div class="badge">BB</div><div class="eyebrow">BETWEEN BYTES / CYBER STUDIO</div><h1>Browse. Inspect.<br>Build something.</h1><p>Your browser and developer workspace.<br>Start with a URL. Keep your tools one tap away.</p>
-<form action="https://duckduckgo.com/" method="get"><input name="q" placeholder="Search the web" aria-label="Search the web"><button aria-label="Search">→</button></form>
-<div class="grid"><a href="https://bb.invalid/local-lab"><div class="icon">⌘</div><b>Local lab</b><span>Try the tools offline</span></a><a href="https://example.com"><div class="icon">↗</div><b>Example site</b><span>Open your first page</span></a></div>
-<footer>TOOLS FOR THE PAGE YOU OPEN<br>Network · Console · Elements · Repeater</footer></html>
+</head>
+<body><main>
+<div class="brand"><span class="mark">BB</span><span>BETWEEN BYTES<br>CYBER STUDIO</span></div>
+<h1>Welcome back.</h1>
+<p class="lead">Browse normally. Open developer tools only when you need them.</p>
+<form action="https://duckduckgo.com/" method="get">
+<input name="q" type="search" aria-label="Search the web" placeholder="Search the web or enter a query"><button type="submit" aria-label="Search">→</button>
+</form>
+<div class="headline">QUICK ACCESS</div>
+<div class="quick">
+<a href="https://bb.invalid/local-lab"><span class="symbol">⌘</span><strong>Local lab</strong><small>Try request inspection offline</small></a>
+<a href="https://example.com"><span class="symbol">↗</span><strong>Example website</strong><small>Open a safe test page</small></a>
+</div>
+<footer>Browser-first Android workspace · Network · Console · Elements · Repeater.<br>
+Request metadata only; full HTTPS interception is not enabled.</footer>
+</main></body></html>
