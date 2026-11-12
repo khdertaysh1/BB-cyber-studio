@@ -1,4 +1,4 @@
-# BB Cyber Studio v0.4 design
+# Blue Dragon v0.5 design
 
 The browser is always the main surface. A compact dark toolbar and three-icon bottom navigation leave room for the live page. Tools open as a rounded, expandable bottom sheet. The user asked for reduced button clutter and mobile-first controls.
 
@@ -7,3 +7,7 @@ The start page now has a single clear Google search field and no demonstration s
 Colors are restrained navy/blue, with unified rounded controls, compact headers and readable text. These UI components are original, not copies of another browser's assets.
 
 Security model is unchanged: only explicit user actions evaluate JavaScript or execute shell commands. The application does not expose a JavaScript-native bridge and does not relax TLS certificate verification. Request metadata observation is not an HTTPS proxy.
+
+## Blue Dragon interface
+
+The approved new visual direction uses deep sapphire `#071426`, blue surfaces `#102847`, and cyan `#03CFFF`. The new-tab HTML uses a vector dragon badge and search-first hero while the native interface retains accessible controls and a functional developer-tools bottom sheet. Observed Network records never invent HTTP status, response size or timing from mockup art.

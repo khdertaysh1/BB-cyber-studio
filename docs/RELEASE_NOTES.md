@@ -1,9 +1,11 @@
-# BB Cyber Studio v0.4.0 Alpha — Google, Elements and Console UX
+# Blue Dragon 0.5 Alpha
 
-Browser-first Android application for no-root research. New tab and address bar search with Google, and the public Local Lab/Example shortcuts are gone.
+- Rebranded the Android app, icon and browser start screen as Blue Dragon.
+- Redesigned native colors and header, with functional Network Clear / Reload / Copy URLs.
+- Added counters for real observed request metadata and unique hosts.
+- Added optional stably signed Android release APK with secrets stored only in repository settings.
+- Preserved `studio.bb.cyber` package ID to avoid creating a separate Android app.
 
-Console offers only Run and Copy for core actions; Copy grabs the last evaluated JavaScript result, and Tools ⋮ can copy all logs. Elements now focuses on inspecting HTML with explicit Copy HTML and expandable temporary CSS editing. Terminal mode is explicitly Android or external Termux; package commands such as pkg update require Termux and are not run in the Android app shell.
+## Known limitations
 
-The UI retains its expandable DevTools sheet and independent HTTP Repeater. Original browser request/response body, TLS interception, HAR, embedded Linux PTY and complete Chrome DevTools features are NOT available.
-
-The build pipeline runs JVM unit tests, Android lint, APK compile and Android 15 emulator smoke tests. A green CI build does not guarantee real-device Termux integration; validate on the intended phone. This is debug-signed and may not install over an older build with a different certificate.
+Android WebView cannot provide original response body, complete status codes, bytes transferred or request timing with the current interception-free architecture. The Network UI does not invent this data. Debug APK signatures can vary on GitHub runners, and APKs installed outside Google Play may trigger Play Protect security scanning; stable signing does not suppress all warnings. Terminal uses an Android app sandbox or a separately installed Termux application.

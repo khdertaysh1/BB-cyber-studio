@@ -1,8 +1,18 @@
-# BB Cyber Studio — Android 0.4 Alpha
+# Blue Dragon — Android 0.5 Alpha
+
+**Blue Dragon** is the new branding for BB Cyber Studio. The Android application ID stays `studio.bb.cyber` so existing installations can be updated **when they share the same signing certificate**.
 
 A mobile-first browser and developer workspace for web inspection on Android 8+ (no root). The app uses Android System WebView, not a full Chromium fork.
 
-## What changed in v0.4
+## What's new in v0.5
+
+- Redesigned new-tab browser page with Blue Dragon icon, sapphire and cyan branding.
+- New Android vector launcher icon and updated native Tools header.
+- Network includes working Clear, Reload and Copy URLs actions plus real observed-request and unique-host counters.
+- Optional stable release signing through GitHub Actions secrets. Read [APK signing and installation troubleshooting](docs/SIGNING.md).
+- Request status codes, timing, and byte sizes are **not** fabricated: WebView only exposes request metadata.
+
+## Previous v0.4 capabilities
 
 - **Google** is the default search engine, in the address bar and new-tab page.
 - The new-tab page no longer shows Local Lab or Example Website shortcuts. The isolated loopback fixture remains internally for automated tests.
@@ -13,7 +23,7 @@ A mobile-first browser and developer workspace for web inspection on Android 8+ 
 
 ## Install
 
-Download the APK from a green [Android APK GitHub Actions run](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml) → **Artifacts** → `BB-cyber-studio-0.4.0-alpha-debug` → extract the ZIP → install `app-debug.apk`. Development builds may use different debug signing identities; uninstalling an old version can delete local browsing and saved request data.
+Download a debug APK from a green [Blue Dragon Android APK workflow run](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml) → **Artifacts** → `BlueDragon-0.5.0-alpha-debug` → extract `app-debug.apk`. GitHub Releases will publish `BlueDragon.apk` (signed) when the repository's four stable release-signing secrets are configured; otherwise it publishes `BlueDragon-debug.apk`. Debug APKs created by separate CI runs may not upgrade one another. **Uninstalling an old build may delete its local data.** See [signing instructions](docs/SIGNING.md).
 
 ## Practical usage
 
@@ -31,7 +41,7 @@ Download the APK from a green [Android APK GitHub Actions run](https://github.co
 
 ## Connect Termux
 
-Install an official [Termux](https://github.com/termux/termux-app) distribution. In Termux set `allow-external-apps=true` in `~/.termux/termux.properties`, then run `termux-reload-settings`. Grant **Run commands in Termux environment** to BB Cyber Studio under Android app permissions. Select **Terminal → Android ▾ → Termux ▾**. You may need to grant the permission and press Run again.
+Install an official [Termux](https://github.com/termux/termux-app) distribution. In Termux set `allow-external-apps=true` in `~/.termux/termux.properties`, then run `termux-reload-settings`. Grant **Run commands in Termux environment** to Blue Dragon under Android app permissions. Select **Terminal → Android ▾ → Termux ▾**. You may need to grant the permission and press Run again.
 
 Commands originate only from the native input and require confirmation before Termux executes them. The app does not expose shell APIs to webpages.
 
