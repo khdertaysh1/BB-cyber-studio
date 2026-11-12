@@ -1,32 +1,31 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>New tab</title>
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#071426">
+<title>Blue Dragon — New tab</title>
 <style>
-:root{color-scheme:dark;--bg:#0c1420;--ink:#edf4ff;--muted:#9baec5;--line:#24364f;--surface:#152235;--blue:#75acfa}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
-main{max-width:620px;margin:0 auto;padding:clamp(30px,10vh,95px) 24px 42px}
-.brand{display:flex;align-items:center;gap:11px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1.3px}
-.mark{display:grid;place-items:center;background:#1e3552;color:#acd1ff;width:42px;height:42px;border:1px solid #345d88;border-radius:13px;font-size:16px;letter-spacing:0}
-h1{font-size:clamp(31px,8vw,47px);font-weight:680;letter-spacing:-1.7px;line-height:1.08;margin:42px 0 15px}
-p{max-width:390px;line-height:1.65;font-size:14px;color:var(--muted);margin:0 0 28px}
-form{display:flex;align-items:center;border:1px solid #3a506d;border-radius:18px;background:var(--surface);padding:6px 7px 6px 17px;box-shadow:0 16px 35px #0002}
-input{min-width:0;flex:1;background:transparent;border:0;outline:0;color:var(--ink);font:15px system-ui;padding:13px 3px}
-input::placeholder{color:#a0b0c5}button{border:0;background:var(--blue);color:#0b1d32;padding:12px 18px;border-radius:13px;font-weight:750;font-size:14px}
-.note{color:#8ea3bd;font-size:12px;margin-top:13px;padding-left:3px}
-.section{margin-top:55px;padding-top:17px;border-top:1px solid var(--line);font-size:12px;color:#829ab8;line-height:1.9}
-@media(max-width:350px){main{padding:35px 17px}h1{margin-top:35px}}
-</style>
-</head>
-<body><main>
-<div class="brand"><span class="mark">BB</span><span>BETWEEN BYTES<br>CYBER STUDIO</span></div>
-<h1>The web, in focus.</h1>
-<p>Browse websites and open your developer tools when you need them.</p>
-<form action="https://www.google.com/search" method="get">
-<input name="q" type="search" enterkeyhint="search" aria-label="Search Google" placeholder="Search with Google" autocomplete="off">
-<button type="submit" aria-label="Search Google">Search</button>
-</form>
-<div class="note">Google is the default search engine. Enter URLs in the browser address bar.</div>
-<div class="section">BROWSE · INSPECT · BUILD<br>Network / Console / Repeater / Elements · Your pages stay in the browser.</div>
+:root{color-scheme:dark;--bg:#071426;--ink:#eff8ff;--muted:#9ebbd1;--surface:#0b1d36;--blue:#03cfff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 90% 4%,#0556a168,transparent 49%),radial-gradient(ellipse at 10% 98%,#0456a134,transparent 43%),var(--bg);color:var(--ink);font:15px system-ui,-apple-system,"Segoe UI",sans-serif}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(#0876c3 1px,transparent 1px);background-size:24px 24px;opacity:.15}
+main{position:relative;max-width:650px;margin:auto;padding:clamp(28px,7vh,70px) 23px 42px}
+.brand{display:flex;gap:16px;align-items:center}.emblem{width:78px;height:78px;display:grid;place-items:center;flex-shrink:0;border:1px solid #00a5f5;border-radius:23px;background:linear-gradient(135deg,#102d59,#061324);box-shadow:0 0 25px #0089ff54}.emblem svg{width:72px;height:72px}
+.brand-name{font-size:clamp(28px,8vw,44px);font-style:italic;font-weight:850;letter-spacing:-1.8px}.brand-name span{color:#03cfff;text-shadow:0 0 13px #03cfff55}.underline{height:2px;background:linear-gradient(90deg,#1680ff,#03cfff,transparent);margin-top:10px}
+.kicker{margin:18px 0 29px;color:#91bad6;font-size:11px;letter-spacing:.16em;font-weight:750}
+.hero{border:1px solid #1887c9;border-radius:24px;background:linear-gradient(145deg,#103457ed,#071a30);padding:26px 23px;box-shadow:0 15px 40px #0007,inset 0 1px 0 #58cbff2f;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-75px;bottom:-110px;width:200px;height:200px;border:1px solid #168ada6d;border-radius:50%;box-shadow:0 0 0 27px #0763a91a,0 0 0 56px #00acff13}
+.hero-mark{color:var(--blue);font-size:28px}h1{position:relative;z-index:1;font-size:clamp(24px,6vw,34px);line-height:1.22;letter-spacing:-.7px;margin:13px 0;font-weight:770}
+.hero p{position:relative;z-index:1;color:#a7c6df;font-size:13px;line-height:1.7;max-width:400px;margin:0}
+h2{font-size:11px;color:#b6d3e8;margin:30px 2px 12px;letter-spacing:.12em}
+form{display:flex;gap:5px;align-items:center;padding:7px 8px 7px 15px;background:#102b4d;border:1px solid #1c93d7;border-radius:20px;box-shadow:0 0 25px #0680f326}
+.search-ico{font-size:23px;color:#9bdfff;margin-right:5px}input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:15px system-ui;padding:13px 0}input::placeholder{color:#acc7dd}
+button{background:linear-gradient(120deg,#02e0f1,#2285ff);color:#041629;border:0;border-radius:14px;padding:13px 17px;font-size:14px;font-weight:800}
+button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:3px}.features{margin-top:33px;padding:18px 6px;border-top:1px solid #21537e;color:#a4bfd8;font-size:12px;line-height:1.8}
+.features b{color:#03cfff}.note{font-size:11px;line-height:1.6;margin-top:21px;color:#789cb8}
+@media(max-width:380px){main{padding:29px 16px}.emblem{width:66px;height:66px}.emblem svg{width:62px;height:62px}.brand-name{font-size:27px}.hero{padding:22px 18px}button{padding:12px 13px}}
+</style></head><body><main>
+<header class="brand"><div class="emblem"><svg viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Blue Dragon"><defs><linearGradient id="f" x1="10" y1="10" x2="80" y2="85"><stop stop-color="#2af5ff"/><stop offset=".5" stop-color="#008aff"/><stop offset="1" stop-color="#2546cc"/></linearGradient></defs><path fill="url(#f)" d="M12 39C27 20 41 27 48 33L32 10L64 30L53 20L79 39L88 36L81 49L74 53L63 48L71 46L57 40C43 30 28 32 12 39Z"/><path fill="url(#f)" d="M31 36C18 43 12 55 11 63C25 52 34 47 44 48C31 57 31 68 38 78C41 64 52 56 65 54L58 47C46 38 38 35 31 36Z"/><path fill="#00bfff" d="M54 50C36 59 38 73 62 89C52 72 66 65 77 72C69 58 60 54 54 50Z"/><path fill="#dcfbff" d="M67 39L77 40L72 45Z"/></svg></div><div><div class="brand-name">Blue <span>Dragon</span></div><div class="underline"></div></div></header>
+<div class="kicker">ADVANCED WEB INSPECTOR &amp; DEVELOPER TOOLS</div>
+<section class="hero"><div class="hero-mark" aria-hidden="true">◇</div><h1>Browse the web.<br>Inspect the details.</h1><p>Explore websites with built-in Network, Console, Repeater and Elements tools. No root required.</p></section>
+<h2>START BROWSING</h2>
+<form action="https://www.google.com/search" method="get"><span class="search-ico" aria-hidden="true">⌕</span><input name="q" aria-label="Search Google" type="search" enterkeyhint="search" placeholder="Search with Google" autocomplete="off"><button type="submit">Search</button></form>
+<div class="features"><b>≋</b> Browser · Network · Console · Repeater · Elements · Terminal</div>
+<p class="note">Network shows observed request metadata, not complete HTTPS interception. Browsing storage is persistent; this is not incognito mode.</p>
 </main></body></html>

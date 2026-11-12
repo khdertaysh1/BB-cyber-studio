@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
 
 /** Native control surface. Untrusted pages never receive a JavaScript-to-native bridge. */
 public final class MainActivity extends Activity {
-    private static final int BG=0xff0c1420, CARD=0xff152235, INK=0xffedf4ff, MUTED=0xff9baec5, ACCENT=0xff75acfa;
+    private static final int BG=0xff071426, CARD=0xff102847, INK=0xffeff8ff, MUTED=0xff9ebbd1, ACCENT=0xff03cfff;
     private static final String TERMUX_PERMISSION="com.termux.permission.RUN_COMMAND";
     private LinearLayout root, browserBox, panelHost, networkRows, nav, siteTabs, bottomNav, toolHeader, tabLine, networkCategories, toolsSheet, urlBar;
     private FrameLayout webHost, stage;
@@ -57,7 +57,7 @@ public final class MainActivity extends Activity {
     private Button sendButton, tabCounter, terminalModeButton, consoleCopyButton;
     private TextView repeaterNotice, sheetLabel;
     private LinearLayout repeaterAdvanced;
-    private TextView networkSummary;
+    private TextView networkSummary, networkMetrics;
     private final Map<String,View> panels=new LinkedHashMap<>();
     private final Map<String,Button> tabs=new LinkedHashMap<>();
     private final Map<String,ImageView> destinationIcons=new LinkedHashMap<>();
@@ -103,7 +103,7 @@ public final class MainActivity extends Activity {
     private int dp(int value) { return Math.round(value*getResources().getDisplayMetrics().density); }
     private LinearLayout column() { LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);return v; }
     private LinearLayout row() { LinearLayout v=new LinearLayout(this);v.setGravity(Gravity.CENTER_VERTICAL);return v; }
-    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));d.setStroke(dp(1),0xff2c415d);return d; }
+    private GradientDrawable box(int color) { GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(16));d.setStroke(dp(1),0xff1d578c);return d; }
     private TextView label(String value,int size,int color) {
         TextView v=new TextView(this);v.setText(value);v.setTextSize(size);v.setTextColor(color);v.setPadding(dp(4),dp(5),dp(4),dp(5));return v;
     }
@@ -148,16 +148,16 @@ public final class MainActivity extends Activity {
         root.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         status=label("Ready",10,MUTED);
 
-        tabLine=row();tabLine.setPadding(dp(4),0,dp(6),0);tabLine.setBackgroundColor(0xff111b29);
+        tabLine=row();tabLine.setPadding(dp(4),0,dp(6),0);tabLine.setBackgroundColor(0xff0b1d36);
         HorizontalScrollView siteScroll=new HorizontalScrollView(this);siteScroll.setHorizontalScrollBarEnabled(false);
         siteTabs=row();siteScroll.addView(siteTabs);tabLine.addView(siteScroll,new LinearLayout.LayoutParams(0,dp(46),1));
         tabLine.addView(icon("+","New tab",()->newTab(null)));root.addView(tabLine);
         tabLine.setVisibility(View.GONE);
 
-        urlBar=row();urlBar.setPadding(dp(6),dp(3),dp(6),dp(3));urlBar.setBackgroundColor(0xff111a27);
+        urlBar=row();urlBar.setPadding(dp(6),dp(3),dp(6),dp(3));urlBar.setBackgroundColor(0xff0b1d36);
         urlBar.addView(icon("‹","Back",()->{if(web!=null&&web.canGoBack())web.goBack();}));
         address=edit("Search or enter address",1);
-        address.setBackground(box(0xff223146));address.setTextSize(14);
+        address.setBackground(box(0xff132f51));address.setTextSize(14);
         address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
         address.setImeOptions(EditorInfo.IME_ACTION_GO);address.setSelectAllOnFocus(true);
         address.setOnEditorActionListener((v,action,event)->{if(action==EditorInfo.IME_ACTION_GO){navigate();return true;}return false;});
@@ -180,11 +180,11 @@ public final class MainActivity extends Activity {
         toolsSheet=column();toolsSheet.setBackground(sheetBackground());toolsSheet.setElevation(dp(12));
         toolsSheet.setClipToOutline(true);
         LinearLayout grab=row();grab.setGravity(Gravity.CENTER);
-        View handle=new View(this);handle.setBackground(box(0xff58708d));
+        View handle=new View(this);handle.setBackground(box(0xff159bdb));
         grab.addView(handle,new LinearLayout.LayoutParams(dp(42),dp(5)));
         toolsSheet.addView(grab,new LinearLayout.LayoutParams(-1,dp(19)));
         toolHeader=row();toolHeader.setPadding(dp(12),0,dp(8),0);
-        sheetLabel=label("DEVTOOLS",12,INK);sheetLabel.setTypeface(null,Typeface.BOLD);
+        sheetLabel=label("BLUE DRAGON · DEVTOOLS",12,INK);sheetLabel.setTypeface(null,Typeface.BOLD);
         toolHeader.addView(sheetLabel,new LinearLayout.LayoutParams(0,-2,1));
         toolHeader.addView(icon("⤢","Expand or collapse tools",()->{toolsExpanded=!toolsExpanded;updateSheetHeight();}));
         toolHeader.addView(icon("⋮","Tool options",this::toolOptionsMenu));
@@ -205,7 +205,7 @@ public final class MainActivity extends Activity {
         buildNetwork();buildRepeater();buildConsole();buildElements();buildAnalyze();buildTerminal();buildWorkspace();
 
         // The persistent destinations are intentional: browsing, inspection and shell.
-        bottomNav=row();bottomNav.setPadding(dp(8),0,dp(8),0);bottomNav.setBackgroundColor(0xff111a27);
+        bottomNav=row();bottomNav.setPadding(dp(8),0,dp(8),0);bottomNav.setBackgroundColor(0xff0b1d36);
         String[] names={"Browser","Tools","Terminal"};
         int[] symbols={R.drawable.ic_nav_browser,R.drawable.ic_nav_tools,R.drawable.ic_nav_terminal};
         for(int i=0;i<names.length;i++){
@@ -226,8 +226,9 @@ public final class MainActivity extends Activity {
 
     private GradientDrawable sheetBackground(){
         GradientDrawable shape=new GradientDrawable();
-        shape.setColor(0xff111925);
-        shape.setCornerRadii(new float[]{dp(20),dp(20),dp(20),dp(20),0,0,0,0});
+        shape.setColor(0xff0b1d36);
+        shape.setStroke(dp(1),0xff116ca8);
+        shape.setCornerRadii(new float[]{dp(22),dp(22),dp(22),dp(22),0,0,0,0});
         return shape;
     }
 
@@ -301,7 +302,7 @@ public final class MainActivity extends Activity {
         if(tabCounter!=null)tabCounter.setText(String.valueOf(browserTabs.size()));
         siteTabs.removeAllViews();
         for(BrowserTab tab:browserTabs){
-            LinearLayout chip=row();chip.setBackground(box(tab==activeTab?0xff263b57:0xff111a27));
+            LinearLayout chip=row();chip.setBackground(box(tab==activeTab?0xff263b57:0xff0b1d36));
             TextView title=label(tab.title,12,tab==activeTab?INK:MUTED);
             title.setSingleLine(true);title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             title.setContentDescription("Switch tab "+tab.title);
@@ -366,7 +367,7 @@ public final class MainActivity extends Activity {
         tabLine.setVisibility(browser&&tabsExpanded?View.VISIBLE:View.GONE);
         urlBar.setVisibility(terminal||workspace?View.GONE:View.VISIBLE);
         navigationScroll.setVisibility(tool?View.VISIBLE:View.GONE);
-        sheetLabel.setText(terminal?"TERMINAL":workspace?"SAVED REQUESTS":"DEVELOPER TOOLS");
+        sheetLabel.setText(terminal?"BLUE DRAGON · TERMINAL":workspace?"BLUE DRAGON · SAVED REQUESTS":"BLUE DRAGON · DEVTOOLS");
         toolsSheet.setVisibility(browser?View.GONE:View.VISIBLE);
         // Keep WebView alive below the sheet. The keyboard may resize the stage.
         updateSheetHeight();
@@ -379,7 +380,7 @@ public final class MainActivity extends Activity {
             ImageView destinationIcon=destinationIcons.get(key);
             if(destinationIcon!=null)destinationIcon.setColorFilter(active?ACCENT:MUTED);
             if(!key.equals("Browser")&&!key.equals("Tools")&&!key.equals("Terminal"))
-                entry.getValue().setBackground(box(active?0xff243e60:0xff111925));
+                entry.getValue().setBackground(box(active?0xff06538a:0xff0b1d36));
         }
         if(name.equals("Network"))renderNetwork();
         status.setText(name+" · "+(activeTab==null?"":activeTab.title));
@@ -447,11 +448,22 @@ public final class MainActivity extends Activity {
             record.setTextColor(captureEnabled?0xfff18b91:MUTED);
         });
         toolbar.addView(record);
-        toolbar.addView(label("Clear / reload in ⋮ menu",10,MUTED));
-        body.addView(toolbar);
+        toolbar.addView(button("Clear",()->{captures.clear();if(activeTab!=null)activeTab.captures.clear();renderNetwork();}));
+        toolbar.addView(button("Reload",()->{if(web!=null)web.reload();}));
+        toolbar.addView(button("Copy URLs",()->{
+            if(captures.isEmpty()){toast("No requests to copy.");return;}
+            StringBuilder urls=new StringBuilder();
+            for(Capture item:captures)urls.append(item.method).append(' ').append(item.url).append('\n');
+            copy(urls.toString());
+        }));
+        HorizontalScrollView toolbarScroll=new HorizontalScrollView(this);
+        toolbarScroll.setHorizontalScrollBarEnabled(false);toolbarScroll.addView(toolbar);body.addView(toolbarScroll);
+        networkMetrics=label("REQUESTS  0   ·   HOSTS  0",12,ACCENT);
+        networkMetrics.setPadding(dp(12),dp(12),dp(12),dp(12));
+        networkMetrics.setBackground(box(0xff102c4b));body.addView(networkMetrics);
 
         networkFilter=edit("Filter URLs, methods or hostnames",1);
-        networkFilter.setSingleLine(true);networkFilter.setBackground(box(0xff202d41));
+        networkFilter.setSingleLine(true);networkFilter.setBackground(box(0xff102c4b));
         body.addView(networkFilter);
         networkFilter.addTextChangedListener(new android.text.TextWatcher(){
             public void beforeTextChanged(CharSequence value,int start,int count,int after){}
@@ -528,7 +540,10 @@ public final class MainActivity extends Activity {
             networkRows.addView(item);visible++;
         }
         networkSummary.setText(captures.size()+" observed  ·  "+visible+" shown  ·  Active tab only");
-        if(visible==0)networkRows.addView(label("No matching requests. Reload this page or open the local lab.",13,MUTED));
+        java.util.HashSet<String> hosts=new java.util.HashSet<>();
+        for(Capture capture:captures){String host=Uri.parse(capture.url).getHost();if(host!=null)hosts.add(host);}
+        if(networkMetrics!=null)networkMetrics.setText("REQUESTS  "+captures.size()+"   ·   HOSTS  "+hosts.size()+"   ·   SHOWN  "+visible);
+        if(visible==0)networkRows.addView(label("No matching requests. Open a website or reload this tab.",13,MUTED));
     }
     private String headersText(Map<String,String> headers,boolean replay) {
         StringBuilder text=new StringBuilder();for(Map.Entry<String,String> h:headers.entrySet()){
@@ -736,7 +751,7 @@ public final class MainActivity extends Activity {
     }
     private void buildTerminal(){
         LinearLayout body=column();body.setPadding(dp(12),dp(6),dp(12),dp(6));
-        body.setBackgroundColor(0xff0c1420);panels.put("Terminal",body);
+        body.setBackgroundColor(0xff071426);panels.put("Terminal",body);
         LinearLayout top=row();
         TextView title=label("Terminal",17,INK);title.setTypeface(null,Typeface.BOLD);
         top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
@@ -750,7 +765,7 @@ public final class MainActivity extends Activity {
         top.addView(terminalModeButton);body.addView(top);
         body.addView(label("ANDROID SHELL / TERMUX CONNECTION · SELECT MODE ABOVE",11,MUTED));
         terminalOutput=output("BB Cyber Studio\n\nAndroid mode runs system shell commands inside the app sandbox, not Linux packages. Switch to Termux for pkg, Python and other Termux-installed tools.\n\n");
-        terminalOutput.setTextSize(12);terminalOutput.setBackgroundColor(0xff0c1420);
+        terminalOutput.setTextSize(12);terminalOutput.setBackgroundColor(0xff071426);
         terminalOutput.setContentDescription("Terminal output");
         terminalScroll=new ScrollView(this);terminalScroll.setFillViewport(true);
         terminalScroll.addView(terminalOutput);body.addView(terminalScroll,new LinearLayout.LayoutParams(-1,0,1));
@@ -868,7 +883,7 @@ public final class MainActivity extends Activity {
         }));
         body.addView(label("To remove saved requests or clear website data, use the ⋮ tool menu. Browser cookies and WebView storage are not saved in this request file.",11,MUTED));
     }
-    private void copy(String value){((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("BB Cyber Studio",value));toast("Copied.");}
+    private void copy(String value){((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Blue Dragon",value));toast("Copied.");}
     private void toast(String message){Toast.makeText(this,message==null?"Unknown error":message,Toast.LENGTH_LONG).show();}
     private void confirm(String title,String message,Runnable accepted){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setNegativeButton("Cancel",null).setPositiveButton("Continue",(d,w)->accepted.run()).show();}
     private void showText(String title,String value){ScrollView scroll=new ScrollView(this);scroll.addView(output(value));new AlertDialog.Builder(this).setTitle(title).setView(scroll).setPositiveButton("Close",null).show();}

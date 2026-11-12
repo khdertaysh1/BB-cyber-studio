@@ -4,7 +4,7 @@
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
     <queries><package android:name="com.termux" /></queries>
     <application
-        android:label="BB Cyber Studio"
+        android:label="Blue Dragon"
         android:icon="@drawable/ic_studio"
         android:theme="@style/AppTheme"
         android:allowBackup="false"
