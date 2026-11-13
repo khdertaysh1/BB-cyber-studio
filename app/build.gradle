@@ -7,8 +7,8 @@ android {
         applicationId 'studio.bb.cyber'
         minSdk 26
         targetSdk 35
-        versionCode 5
-        versionName '0.5.0-alpha'
+        versionCode (project.findProperty('blueDragonVersionCode') ?: '6').toInteger()
+        versionName '0.5.1-alpha'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     compileOptions {
@@ -25,8 +25,10 @@ android {
             }
         }
     }
+    buildFeatures { buildConfig true }
     buildTypes {
         release {
+            debuggable false
             minifyEnabled false
             if (System.getenv('BLUE_DRAGON_KEYSTORE_FILE')) signingConfig signingConfigs.release
         }
@@ -39,4 +41,20 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test:core:1.6.1'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}
+
+// Fail closed: a release APK must never silently become unsigned or use the debug key.
+tasks.register('validateReleaseSigning') {
+    doLast {
+        ['BLUE_DRAGON_KEYSTORE_FILE', 'BLUE_DRAGON_KEYSTORE_PASSWORD',
+         'BLUE_DRAGON_KEY_ALIAS', 'BLUE_DRAGON_KEY_PASSWORD'].each { name ->
+            if (!System.getenv(name)?.trim()) throw new GradleException("Release signing is missing " + name + ". See docs/SIGNING.md.")
+        }
+        if (!file(System.getenv('BLUE_DRAGON_KEYSTORE_FILE')).isFile()) {
+            throw new GradleException('Release keystore file does not exist.')
+        }
+    }
+}
+tasks.configureEach { task ->
+    if (task.name == 'preReleaseBuild') task.dependsOn('validateReleaseSigning')
 }

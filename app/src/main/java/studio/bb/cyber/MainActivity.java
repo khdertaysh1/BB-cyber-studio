@@ -74,7 +74,7 @@ public final class MainActivity extends Activity {
 
     private static final class BrowserTab {
         WebView view; String title="New tab"; boolean desktop;
-        String lastConsoleResult="";
+        String lastConsoleResult=""; long consoleGeneration;
         final ArrayList<Capture> captures=new ArrayList<>();
         final ArrayList<String> logs=new ArrayList<>();
     }
@@ -319,9 +319,9 @@ public final class MainActivity extends Activity {
     }
     void openLab(){if(lab==null){toast("Local lab is starting. Try again.");return;}web.loadUrl(lab.url());select("Browser");}
     private void browserMenu(){
-        new AlertDialog.Builder(this).setTitle("BB Cyber Studio").setItems(
+        new AlertDialog.Builder(this).setTitle("Blue Dragon").setItems(
             new String[]{"New tab","Forward","Desktop site","Open externally",
-                "Page analysis","Saved requests","Clear browser data"},(d,which)->{
+                "Page analysis","Saved requests","Clear browser data","App & installation info"},(d,which)->{
             switch(which){
             case 0:newTab(null);break;
             case 1:if(web.canGoForward())web.goForward();break;
@@ -340,20 +340,21 @@ public final class MainActivity extends Activity {
             case 5:openWorkspace();break;
             case 6:confirm("Clear browser data?","Remove cookies, site storage, cache and captured request metadata?",
                 this::clearBrowserData);break;
+            case 7:showAppInfo();break;
             }
         }).show();
     }
     void openAnalyze(){select("Analyze");}
     void openWorkspace(){select("Workspace");}
-    private void clearBrowserData(){
+    void clearBrowserData(){
         for(BrowserTab tab:browserTabs){
             tab.view.stopLoading();tab.view.loadUrl("about:blank");tab.view.clearHistory();
-            tab.captures.clear();tab.logs.clear();
+            tab.captures.clear();tab.logs.clear();tab.lastConsoleResult="";tab.consoleGeneration++;
         }
         CookieManager.getInstance().removeAllCookies(done->CookieManager.getInstance().flush());
         WebStorage.getInstance().deleteAllData();
         if(web!=null){web.clearCache(true);web.clearHistory();}
-        captures.clear();renderNetwork();logs.clear();consoleOutput.setText("");
+        captures.clear();renderNetwork();logs.clear();consoleOutput.setText("");consoleCopyButton.setEnabled(false);
         toast("Browsing data cleared.");
     }
 
@@ -399,7 +400,7 @@ public final class MainActivity extends Activity {
                 if(which==0){
                     String value=android.text.TextUtils.join("\n\n",logs);
                     if(value.trim().isEmpty())toast("No logs to copy.");else copy(value);
-                }else if(which==1){logs.clear();if(activeTab!=null)activeTab.lastConsoleResult="";consoleOutput.setText("");}
+                }else if(which==1){logs.clear();if(activeTab!=null){activeTab.lastConsoleResult="";activeTab.consoleGeneration++;}consoleOutput.setText("");consoleCopyButton.setEnabled(false);}
                 else web.reload();
             }else if(selected.equals("Repeater")){
                 if(which==0||which==1)try{
@@ -690,11 +691,13 @@ public final class MainActivity extends Activity {
         String source=jsInput.getText().toString();
         if(source.trim().isEmpty())return;
         final BrowserTab evaluatedTab=activeTab;
+        final long generation=evaluatedTab.consoleGeneration;
         if(consoleCopyButton!=null)consoleCopyButton.setEnabled(false);
         if(evaluatedTab!=null)evaluatedTab.lastConsoleResult="";
         addLog("> "+source);
         String script="(function(){try{var v=(0,eval)("+JSONObject.quote(source)+");if(v&&typeof v.then==='function')return 'Promise returned; use console.log in .then() to inspect its value';return typeof v==='string'?v:(typeof v==='undefined'?'undefined':JSON.stringify(v,null,2));}catch(e){return e.name+': '+e.message;}})()";
         web.evaluateJavascript(script,value->{
+            if(destroyed||!browserTabs.contains(evaluatedTab)||evaluatedTab.consoleGeneration!=generation)return;
             String decoded;
             try{Object object=new JSONTokener(value).nextValue();decoded=String.valueOf(object);}
             catch(Exception e){decoded=value;}
@@ -704,7 +707,7 @@ public final class MainActivity extends Activity {
                 consoleCopyButton.setEnabled(decoded!=null&&!decoded.isEmpty());
         });
     }
-    private void addTabLog(BrowserTab tab,String message){if(message.length()>8000)message=message.substring(0,8000);if(tab.logs.size()>=200)tab.logs.remove(0);tab.logs.add(message);if(tab==activeTab&&consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",tab.logs));}
+    private void addTabLog(BrowserTab tab,String message){if(destroyed||tab==null||!browserTabs.contains(tab))return;if(message.length()>8000)message=message.substring(0,8000);if(tab.logs.size()>=200)tab.logs.remove(0);tab.logs.add(message);if(tab==activeTab&&consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",tab.logs));}
     private void addLog(String message){if(message.length()>8000)message=message.substring(0,8000)+"\n[Truncated]";if(logs.size()>=200)logs.remove(0);logs.add(message);if(consoleOutput!=null)consoleOutput.setText(android.text.TextUtils.join("\n\n",logs));}
     private void buildElements(){
         LinearLayout body=panel("Elements","Elements · DOM","Inspect the HTML structure of the active page.");
@@ -833,7 +836,7 @@ public final class MainActivity extends Activity {
         }),review,button("Copy report",()->confirm("Copy analysis?","Page URLs may contain sensitive query parameters. Review the report before sharing.",()->copy(result.getText().toString()))));
         body.addView(result);
     }
-    private void termuxSetup(){showText("Connect Termux","1. Install Termux from its official F-Droid or GitHub source.\n\n2. In Termux, add this line to ~/.termux/termux.properties:\n\nallow-external-apps=true\n\nThen run: termux-reload-settings\n\n3. Grant BB Cyber Studio the Run commands in Termux permission when prompted. If unavailable, open Android Settings → Apps → BB Cyber Studio → Permissions → Additional permissions.\n\n4. Tap Run in Termux. Use short, non-interactive commands. Results arrive when the process exits; interactive programs belong in Open Termux for this version.\n\nCommands run with Termux's permissions and can modify its files. No command is run merely by visiting a page or importing a request.");}
+    private void termuxSetup(){showText("Connect Termux","1. Install Termux from its official F-Droid or GitHub source.\n\n2. In Termux, add this line to ~/.termux/termux.properties:\n\nallow-external-apps=true\n\nThen run: termux-reload-settings\n\n3. Grant Blue Dragon the Run commands in Termux permission when prompted. If unavailable, open Android Settings → Apps → Blue Dragon → Permissions → Additional permissions.\n\n4. Tap Run in Termux. Use short, non-interactive commands. Results arrive when the process exits; interactive programs belong in Open Termux for this version.\n\nCommands run with Termux's permissions and can modify its files. No command is run merely by visiting a page or importing a request.");}
     private void openTermux(){Intent launch=getPackageManager().getLaunchIntentForPackage("com.termux");if(launch==null){termuxSetup();return;}startActivity(launch);}
     private void runTermux(){
         if(checkSelfPermission(TERMUX_PERMISSION)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{TERMUX_PERMISSION},40);toast("Grant permission, then tap Run again.");return;}
@@ -883,6 +886,9 @@ public final class MainActivity extends Activity {
         }));
         body.addView(label("To remove saved requests or clear website data, use the ⋮ tool menu. Browser cookies and WebView storage are not saved in this request file.",11,MUTED));
     }
+    void showAppInfo(){showText("App & installation info",AppDiagnostics.describe(this));}
+    @Override protected void onPause(){if(web!=null)web.onPause();super.onPause();}
+    @Override protected void onResume(){super.onResume();if(web!=null)web.onResume();}
     private void copy(String value){((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Blue Dragon",value));toast("Copied.");}
     private void toast(String message){Toast.makeText(this,message==null?"Unknown error":message,Toast.LENGTH_LONG).show();}
     private void confirm(String title,String message,Runnable accepted){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setNegativeButton("Cancel",null).setPositiveButton("Continue",(d,w)->accepted.run()).show();}

@@ -1,15 +1,22 @@
-# Blue Dragon — Android 0.5 Alpha
+# Blue Dragon — Android 0.5.1 Alpha
 
 **Blue Dragon** is the new branding for BB Cyber Studio. The Android application ID stays `studio.bb.cyber` so existing installations can be updated **when they share the same signing certificate**.
 
 A mobile-first browser and developer workspace for web inspection on Android 8+ (no root). The app uses Android System WebView, not a full Chromium fork.
 
-## What's new in v0.5
+## What's new in v0.5.1
+
+- Release builds require a private signing configuration; publication cannot fall back to Debug.
+- CI verifies non-debuggable APKs and an in-place same-key version update on Android.
+- Browser menu → App & installation info shows version, build type and public certificate fingerprint.
+- Clearing browser data clears pending/copyable console results as well.
+
+## Branding in v0.5
 
 - Redesigned new-tab browser page with Blue Dragon icon, sapphire and cyan branding.
 - New Android vector launcher icon and updated native Tools header.
 - Network includes working Clear, Reload and Copy URLs actions plus real observed-request and unique-host counters.
-- Optional stable release signing through GitHub Actions secrets. Read [APK signing and installation troubleshooting](docs/SIGNING.md).
+- Required stable release signing for publication through GitHub Actions secrets. Read [APK signing and installation troubleshooting](docs/SIGNING.md).
 - Request status codes, timing, and byte sizes are **not** fabricated: WebView only exposes request metadata.
 
 ## Previous v0.4 capabilities
@@ -23,7 +30,7 @@ A mobile-first browser and developer workspace for web inspection on Android 8+ 
 
 ## Install
 
-Download a debug APK from a green [Blue Dragon Android APK workflow run](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml) → **Artifacts** → `BlueDragon-0.5.0-alpha-debug` → extract `app-debug.apk`. GitHub Releases will publish `BlueDragon.apk` (signed) when the repository's four stable release-signing secrets are configured; otherwise it publishes `BlueDragon-debug.apk`. Debug APKs created by separate CI runs may not upgrade one another. **Uninstalling an old build may delete its local data.** See [signing instructions](docs/SIGNING.md).
+Download a debug APK from a green [Blue Dragon Android APK workflow run](https://github.com/khdertaysh1/BB-cyber-studio/actions/workflows/android.yml) → **Artifacts** → `BlueDragon-0.5.1-alpha-debug` → extract `app-debug.apk`. GitHub Releases will publish `BlueDragon.apk` (signed) when the repository's four stable release-signing secrets are configured; publication stops until signing is configured. Debug APKs created by separate CI runs may not upgrade one another. **Uninstalling an old build may delete its local data.** See [signing instructions](docs/SIGNING.md).
 
 ## Practical usage
 
