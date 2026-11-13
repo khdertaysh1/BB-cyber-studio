@@ -28,6 +28,13 @@ jobs:
           gradle-version: '8.10.2'
       - name: Test, lint and build
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - name: Reject release builds without signing
+        run: |
+          if gradle --no-daemon assembleRelease > missing-signing.log 2>&1; then
+            echo "::error::Release build incorrectly accepted missing signing."
+            exit 1
+          fi
+          grep -q 'Release signing is missing' missing-signing.log
       - uses: actions/upload-artifact@v4
         with:
           name: BlueDragon-0.5.1-alpha-debug

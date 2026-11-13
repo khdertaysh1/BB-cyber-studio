@@ -38,3 +38,8 @@ Use a secure local environment with Java keytool. Choose private passwords at it
 keytool -genkeypair -v -keystore blue-dragon-release.jks -storetype JKS -alias blue-dragon -keyalg RSA -keysize 3072 -validity 10000
 ```
 Keep an offline backup. Transfer the keystore to GitHub only through the private Actions secret named above, using a base64 encoding. Never place it in source, an APK artifact, a public release or a chat message. The connector used for this review cannot provision Actions secrets, so production signing still requires that repository setup.
+
+For a trusted Termux/local setup with Java keytool and authenticated GitHub CLI:
+    bash scripts/configure-signing.sh khdertaysh1/BB-cyber-studio
+
+The script prompts for a password, generates/reuses an owner-held key and sets four private Actions secrets via stdin. Review it first and keep the keystore and password safely backed up. It does not change an existing Debug APK's certificate.

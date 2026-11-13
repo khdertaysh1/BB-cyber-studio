@@ -7,7 +7,7 @@ android {
         applicationId 'studio.bb.cyber'
         minSdk 26
         targetSdk 35
-        versionCode (project.findProperty('blueDragonVersionCode') ?: '6').toInteger()
+        versionCode = (project.findProperty('blueDragonVersionCode') ?: '6').toInteger()
         versionName '0.5.1-alpha'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
