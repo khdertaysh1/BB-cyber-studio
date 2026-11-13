@@ -886,13 +886,13 @@ public final class MainActivity extends Activity {
         }));
         body.addView(label("To remove saved requests or clear website data, use the ⋮ tool menu. Browser cookies and WebView storage are not saved in this request file.",11,MUTED));
     }
-    void showAppInfo(){showText("App & installation info",AppDiagnostics.describe(this));}
+    AlertDialog showAppInfo(){return showText("App & installation info",AppDiagnostics.describe(this));}
     @Override protected void onPause(){if(web!=null)web.onPause();super.onPause();}
     @Override protected void onResume(){super.onResume();if(web!=null)web.onResume();}
     private void copy(String value){((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Blue Dragon",value));toast("Copied.");}
     private void toast(String message){Toast.makeText(this,message==null?"Unknown error":message,Toast.LENGTH_LONG).show();}
     private void confirm(String title,String message,Runnable accepted){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setNegativeButton("Cancel",null).setPositiveButton("Continue",(d,w)->accepted.run()).show();}
-    private void showText(String title,String value){ScrollView scroll=new ScrollView(this);scroll.addView(output(value));new AlertDialog.Builder(this).setTitle(title).setView(scroll).setPositiveButton("Close",null).show();}
+    private AlertDialog showText(String title,String value){ScrollView scroll=new ScrollView(this);scroll.addView(output(value));return new AlertDialog.Builder(this).setTitle(title).setView(scroll).setPositiveButton("Close",null).show();}
     @Override public void onBackPressed(){if(!selected.equals("Browser")){select("Browser");return;}if(web.canGoBack())web.goBack();else super.onBackPressed();}
     @Override public void onConfigurationChanged(android.content.res.Configuration configuration){super.onConfigurationChanged(configuration);select(selected);root.requestApplyInsets();root.post(()->{for(Button b:tabs.values()){b.setText(b.getText().toString());b.requestLayout();}root.requestLayout();});}
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){

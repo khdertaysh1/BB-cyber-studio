@@ -175,7 +175,7 @@ public class StudioSmokeTest {
         assertTrue(report.matches("(?s).*([0-9A-F]{2}:){31}[0-9A-F]{2}.*"));
         assertFalse(report.contains("Some build details are unavailable"));
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
-            scenario.onActivity(a->a.showAppInfo());waitFor(scenario,"INSTALLATION HELP");screenshot("09-installation-info");
+            scenario.onActivity(a->{android.app.AlertDialog dialog=a.showAppInfo();assertTrue(dialog.isShowing());assertTrue(contains(dialog.getWindow().getDecorView(),"INSTALLATION HELP"));});screenshot("09-installation-info");
         }
     }
 
@@ -183,7 +183,7 @@ public class StudioSmokeTest {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitFor(scenario,"observed requests");tap(scenario,"Console");
             scenario.onActivity(a->((EditText)findDescription(a.getWindow().getDecorView(),"JavaScript input")).setText("'PRIVATE_CLEAR_TEST'"));
-            tap(scenario,"Run");waitForConsoleResult(scenario,"PRIVATE_CLEAR_TEST");
+            tap(scenario,"Run");waitForConsoleResult(scenario,"\n\nPRIVATE_CLEAR_TEST");
             scenario.onActivity(a->{assertTrue(find(a.getWindow().getDecorView(),"Copy",true).isEnabled());a.clearBrowserData();
                 assertFalse(find(a.getWindow().getDecorView(),"Copy",true).isEnabled());});
             tap(scenario,"Browser");tap(scenario,"Console");
