@@ -120,7 +120,7 @@ public class StudioSmokeTest {
                 assertNull("Verbose console controls should be in overflow",find(tree,"Reload page",true));
                 View browser=find(tree,"Browser",true);
                 assertNotNull(browser);assertTrue(browser.isShown());
-                View sheet=find(tree,"DEVELOPER TOOLS",false);
+                View sheet=find(tree,"BLUE DRAGON · DEVTOOLS",false);
                 assertNotNull(sheet);assertTrue(sheet.isShown());
             });
             scenario.onActivity(a->a.openWorkspace());
