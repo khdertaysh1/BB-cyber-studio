@@ -1,3 +1,10 @@
+# Blue Dragon 0.5.1 alpha
+Release publication now requires private stable signing. Unsigned/debug APKs cannot be silently published as a release. CI checks non-debuggable APKs, validates signatures and tests a same-key version upgrade using disposable test keys. Public certificate fingerprints and checksums accompany published release builds.
+
+Browser menu → App & installation info reports the installed build type, version, certificate SHA-256 and WebView provider. Clearing browser data also clears the copyable console result and ignores pending old evaluation results. Background WebViews pause/resume with the Activity.
+
+Production signing requires the four documented Actions secrets. Play Protect scan recommendations depend on Google's assessment; release signing does not guarantee their removal.
+
 # Blue Dragon 0.5 Alpha
 
 - Rebranded the Android app, icon and browser start screen as Blue Dragon.

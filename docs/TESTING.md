@@ -39,3 +39,6 @@ The Termux handoff is completion-based. The local Android shell streams output, 
 - Elements: Inspect HTML and Copy HTML. Verify the CSS editor is initially hidden, opens on Edit CSS, and style changes are local.
 - Terminal: default is Android mode; switching to Termux is explicit. pkg update in Android mode must explain why it cannot run, not silently fail with a shell not-found message.
 - On a real device, verify Termux is installed, allow-external-apps enabled and RUN_COMMAND permission granted before testing package commands.
+
+## Release readiness (0.5.1)
+Instrumentation verifies build/certificate diagnostics and stale console-result clearing. The emulator then installs a non-debuggable release with a disposable CI key and updates it in place to a higher version code. Test keys/APKs are not distribution artifacts. This checks Android update acceptance, not physical-device Play Protect or a production-key upgrade.

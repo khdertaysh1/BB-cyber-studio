@@ -28,9 +28,16 @@ jobs:
           gradle-version: '8.10.2'
       - name: Test, lint and build
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - name: Reject release builds without signing
+        run: |
+          if gradle --no-daemon assembleRelease > missing-signing.log 2>&1; then
+            echo "::error::Release build incorrectly accepted missing signing."
+            exit 1
+          fi
+          grep -q 'Release signing is missing' missing-signing.log
       - uses: actions/upload-artifact@v4
         with:
-          name: BlueDragon-0.5.0-alpha-debug
+          name: BlueDragon-0.5.1-alpha-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
@@ -71,6 +78,8 @@ jobs:
             device-screenshots/
             emulator.log
             device-logcat.txt
+            release-verification.txt
+            release-package.txt
   publish-alpha:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [build, device-smoke]
@@ -79,10 +88,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: BlueDragon-0.5.0-alpha-debug
-          path: apk
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -93,22 +98,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - name: Check for optional stable release signing
-        id: signing
+      - name: Require private release signing
         env:
           BD_STORE: ${{ secrets.BLUE_DRAGON_KEYSTORE_BASE64 }}
           BD_PASS: ${{ secrets.BLUE_DRAGON_KEYSTORE_PASSWORD }}
           BD_ALIAS: ${{ secrets.BLUE_DRAGON_KEY_ALIAS }}
           BD_KEYPASS: ${{ secrets.BLUE_DRAGON_KEY_PASSWORD }}
         run: |
-          if [[ -n "$BD_STORE" && -n "$BD_PASS" && -n "$BD_ALIAS" && -n "$BD_KEYPASS" ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Stable signing is not configured; this debug APK may not upgrade across workflow runs."
+          if [[ -z "$BD_STORE" || -z "$BD_PASS" || -z "$BD_ALIAS" || -z "$BD_KEYPASS" ]]; then
+            echo "::error::Release publication requires all four BLUE_DRAGON signing secrets. Debug builds remain testing artifacts only. See docs/SIGNING.md."
+            exit 1
           fi
-      - name: Build stably signed release APK
-        if: steps.signing.outputs.enabled == 'true'
+      - name: Build and verify signed release
         env:
           BLUE_DRAGON_KEYSTORE_BASE64: ${{ secrets.BLUE_DRAGON_KEYSTORE_BASE64 }}
           BLUE_DRAGON_KEYSTORE_PASSWORD: ${{ secrets.BLUE_DRAGON_KEYSTORE_PASSWORD }}
@@ -116,24 +117,17 @@ jobs:
           BLUE_DRAGON_KEY_PASSWORD: ${{ secrets.BLUE_DRAGON_KEY_PASSWORD }}
         run: |
           umask 077
-          printf '%s' "$BLUE_DRAGON_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/blue-dragon-release.jks"
           export BLUE_DRAGON_KEYSTORE_FILE="$RUNNER_TEMP/blue-dragon-release.jks"
+          trap 'rm -f "$BLUE_DRAGON_KEYSTORE_FILE"' EXIT
+          printf '%s' "$BLUE_DRAGON_KEYSTORE_BASE64" | base64 --decode > "$BLUE_DRAGON_KEYSTORE_FILE"
           gradle --no-daemon assembleRelease
           mkdir -p apk
           cp app/build/outputs/apk/release/app-release.apk apk/BlueDragon.apk
-          rm -f "$RUNNER_TEMP/blue-dragon-release.jks"
-      - name: Publish tested development APK
+          bash scripts/verify-release.sh apk/BlueDragon.apk > apk/SIGNING-CERTIFICATE.txt
+      - name: Publish verified release APK
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: v0.5.0-alpha.${{ github.run_number }}
+          TAG: v0.5.1-alpha.${{ github.run_number }}
         run: |
-          if [[ -f apk/BlueDragon.apk ]]; then
-            FILE=apk/BlueDragon.apk
-            TITLE="Blue Dragon 0.5 — signed Android alpha"
-          else
-            mv apk/app-debug.apk apk/BlueDragon-debug.apk
-            FILE=apk/BlueDragon-debug.apk
-            TITLE="Blue Dragon 0.5 — debug Android alpha"
-          fi
-          sha256sum "$FILE" > apk/SHA256SUMS.txt
-          gh release create "$TAG" "$FILE" apk/SHA256SUMS.txt --target "$GITHUB_SHA" --title "$TITLE" --notes-file docs/RELEASE_NOTES.md --prerelease
+          (cd apk && sha256sum BlueDragon.apk > SHA256SUMS.txt)
+          gh release create "$TAG" apk/BlueDragon.apk apk/SHA256SUMS.txt apk/SIGNING-CERTIFICATE.txt --target "$GITHUB_SHA" --title "Blue Dragon 0.5.1 — signed Android alpha" --notes-file docs/RELEASE_NOTES.md --prerelease

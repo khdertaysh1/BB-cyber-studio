@@ -166,6 +166,34 @@ public class StudioSmokeTest {
             screenshot("08-arabic-device");
         }finally{context.getResources().updateConfiguration(previous,context.getResources().getDisplayMetrics());}
     }
+    @Test public void installationInfoReportsBuildAndSigningCertificate() throws Exception {
+        Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        String report=AppDiagnostics.describe(context);
+        assertTrue(report.contains("Version: 0.5.1-alpha (6)"));
+        assertTrue(report.contains("DEBUG / testing only"));
+        assertTrue(report.contains("Signing certificate SHA-256:"));
+        assertTrue(report.matches("(?s).*([0-9A-F]{2}:){31}[0-9A-F]{2}.*"));
+        assertFalse(report.contains("Some build details are unavailable"));
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
+            scenario.onActivity(a->{android.app.AlertDialog dialog=a.showAppInfo();assertTrue(dialog.isShowing());assertTrue(contains(dialog.getWindow().getDecorView(),"INSTALLATION HELP"));});screenshot("09-installation-info");
+        }
+    }
+
+    @Test public void clearingBrowserDataRemovesCopyableConsoleResult() throws Exception {
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
+            waitFor(scenario,"observed requests");tap(scenario,"Console");
+            scenario.onActivity(a->((EditText)findDescription(a.getWindow().getDecorView(),"JavaScript input")).setText("'PRIVATE_CLEAR_TEST'"));
+            tap(scenario,"Run");waitForConsoleResult(scenario,"\n\nPRIVATE_CLEAR_TEST");
+            scenario.onActivity(a->{assertTrue(find(a.getWindow().getDecorView(),"Copy",true).isEnabled());a.clearBrowserData();
+                assertFalse(find(a.getWindow().getDecorView(),"Copy",true).isEnabled());});
+            tap(scenario,"Browser");tap(scenario,"Console");
+            scenario.onActivity(a->{
+                assertFalse(find(a.getWindow().getDecorView(),"Copy",true).isEnabled());
+                assertFalse(((TextView)findDescription(a.getWindow().getDecorView(),"Console output")).getText().toString().contains("PRIVATE_CLEAR_TEST"));
+            });
+        }
+    }
+
     @Test public void workspaceEncryptionRoundTripAndDelete() throws Exception {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         WorkspaceStore.save(context,"{\"secret\":\"test-value\"}");

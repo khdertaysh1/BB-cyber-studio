@@ -29,5 +29,6 @@ adb shell settings put global animator_duration_scale 0
 result=0
 gradle --no-daemon connectedDebugAndroidTest || result=$?
 adb pull /data/local/tmp/bb-shots/ device-screenshots/ || true
-adb logcat -d > device-logcat.txt
+if [[ "$result" == 0 ]]; then bash scripts/test-release-upgrade.sh || result=$?; fi
+adb logcat -d > device-logcat.txt || true
 exit "$result"
