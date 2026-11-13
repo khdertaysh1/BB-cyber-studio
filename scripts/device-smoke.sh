@@ -30,5 +30,5 @@ result=0
 gradle --no-daemon connectedDebugAndroidTest || result=$?
 adb pull /data/local/tmp/bb-shots/ device-screenshots/ || true
 if [[ "$result" == 0 ]]; then bash scripts/test-release-upgrade.sh || result=$?; fi
-adb logcat -d > device-logcat.txt
+adb logcat -d > device-logcat.txt || true
 exit "$result"
